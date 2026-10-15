@@ -10,6 +10,6 @@ export function configureApp(app:INestApplication) {
     next();
   });
   app.useGlobalPipes(new ValidationPipe({whitelist:true,forbidNonWhitelisted:true,transform:true}));
-  const config=new DocumentBuilder().setTitle('Howtochoose API').setVersion('0.2.0').build();
+  const config=new DocumentBuilder().setTitle('How2choose API').setVersion('0.2.0').build();
   SwaggerModule.setup('api/docs',app,SwaggerModule.createDocument(app,config));
 }

@@ -19,7 +19,7 @@ export default function LoginForm({initialError}:{initialError:string}) {
     catch(e) { setError((e as Error).message); setBusy(false); }
   }
   return <main className="mx-auto max-w-md px-6 py-16">
-    <Link href="/" className="font-semibold">howtochoose.</Link>
+    <Link href="/" className="font-semibold">How2choose</Link>
     <h1 className="mt-12 text-3xl font-semibold">Đăng nhập</h1>
     <p className="mt-3 text-stone-600">Tiếp tục chọn quà cho những người bạn quan tâm.</p>
     <form onSubmit={submit} className="mt-8 space-y-5">

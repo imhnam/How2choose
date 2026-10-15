@@ -35,7 +35,7 @@ describe('Google callback orchestration (Google token exchange mocked)', () => {
   });
   it('does not silently link a local password account by matching email',async()=>{
     const email='collision-'+suffix+'@example.test';
-    const local=await request(app.getHttpServer()).post('/api/auth/register').send({identifier:email,password:'StrongPass123'}).expect(201);
+    const local=await request(app.getHttpServer()).post('/api/auth/register').send({displayName:'Local User',identifier:email,password:'StrongPass123'}).expect(201);
     userIds.push(local.body.user.id);
     identity.mockResolvedValueOnce({subject:'other-'+suffix,email,displayName:'Other'});
     const agent=request.agent(app.getHttpServer());

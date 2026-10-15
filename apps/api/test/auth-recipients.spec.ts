@@ -30,11 +30,13 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     const first=request.agent(server);
     const second=request.agent(server);
     const suffix=randomUUID().slice(0,10);
-    const a=await first.post('/api/auth/register').send({identifier:'first-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
-    const b=await second.post('/api/auth/register').send({identifier:'second-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
+    const a=await first.post('/api/auth/register').send({displayName:'Người dùng A',identifier:'first-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
+    const b=await second.post('/api/auth/register').send({displayName:'Người dùng B',identifier:'second-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
     userIds.push(a.body.user.id,b.body.user.id);
     expect(a.headers['set-cookie'][0]).toContain('HttpOnly');
     await first.get('/api/auth/me').expect(200);
+    const updatedProfile=await first.patch('/api/auth/me').send({displayName:'Nam mới'}).expect(200);
+    expect(updatedProfile.body.user.displayName).toBe('Nam mới');
     await request(server).get('/api/recipients').expect(401);
     const item=await first.post('/api/recipients').send({displayName:'An',relationship:'Bạn',interests:['sách'],dislikes:[],notes:''}).expect(201);
     await first.get('/api/recipients/'+item.body.id).expect(200);
@@ -51,6 +53,7 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
   });
   it('rejects bad credentials, cross-origin writes, and invalid Google state', async () => {
     const server=app.getHttpServer();
+    await request(server).post('/api/auth/register').send({identifier:'missing-name@example.test',password:'StrongPass123'}).expect(400);
     await request(server).post('/api/auth/login').send({identifier:'missing@example.test',password:'wrongpassword'}).expect(401);
     await request(server).post('/api/auth/register').set('Origin','https://attacker.example').send({identifier:'new@example.test',password:'StrongPass123'}).expect(403);
     await request(server).get('/api/auth/google/callback?code=fake&state=fake').expect(400);
@@ -58,7 +61,7 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
   it('normalizes a Vietnamese phone number for later login', async () => {
     const server=app.getHttpServer();
     const local='09'+String(Math.floor(Math.random()*100000000)).padStart(8,'0');
-    const registered=await request(server).post('/api/auth/register').send({identifier:local,password:'StrongPass123'}).expect(201);
+    const registered=await request(server).post('/api/auth/register').send({displayName:'Người dùng điện thoại',identifier:local,password:'StrongPass123'}).expect(201);
     userIds.push(registered.body.user.id);
     expect(registered.body.user.phone).toBe('+84'+local.slice(1));
     await request(server).post('/api/auth/login').send({identifier:'+84'+local.slice(1),password:'StrongPass123'}).expect(201);

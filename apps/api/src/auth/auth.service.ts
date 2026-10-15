@@ -6,12 +6,14 @@ const SESSION_DAYS = 30;
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
-  async register(identifier: string, password: string) {
+  async register(identifier: string, password: string, displayName: string) {
+    const cleanDisplayName=displayName.trim();
+    if(cleanDisplayName.length<2) throw new BadRequestException('Tên hiển thị phải có ít nhất 2 ký tự');
     let key: { email?: string; phone?: string };
     try { key=normalizeIdentifier(identifier); } catch(e) { throw new BadRequestException((e as Error).message); }
     const existing=await this.prisma.user.findFirst({ where: { OR: [key.email ? {email:key.email}: {}, key.phone ? {phone:key.phone}: {}].filter(x=>Object.keys(x).length) } });
     if(existing) throw new ConflictException('T?i kho?n ?? t?n t?i');
-    const user=await this.prisma.user.create({ data: { ...key, passwordHash: await hashPassword(password) } }).catch((e: unknown)=>{
+    const user=await this.prisma.user.create({ data: { ...key, displayName:cleanDisplayName, passwordHash: await hashPassword(password) } }).catch((e: unknown)=>{
       if((e as {code?:string}).code==='P2002') throw new ConflictException('T?i kho?n ?? t?n t?i');
       throw e;
     });
@@ -38,6 +40,12 @@ export class AuthService {
     return this.publicUser(session.user);
   }
   async logout(token?: string) { if(token) await this.prisma.session.deleteMany({where:{tokenHash:tokenHash(token)}}); }
+  async updateProfile(userId:string,displayName:string) {
+    const cleanDisplayName=displayName.trim();
+    if(cleanDisplayName.length<2) throw new BadRequestException('Tên hiển thị phải có ít nhất 2 ký tự');
+    const user=await this.prisma.user.update({where:{id:userId},data:{displayName:cleanDisplayName}});
+    return this.publicUser(user);
+  }
   async googleUser(subject: string, email: string, displayName?: string) {
     const existing=await this.prisma.user.findUnique({where:{googleSub:subject}});
     if(existing) return this.createSession(existing.id);
@@ -49,7 +57,7 @@ export class AuthService {
     });
     return this.createSession(user.id);
   }
-  publicUser(user: {id:string;email:string|null;phone:string|null;displayName:string|null}): AuthUser {
-    return {id:user.id,email:user.email,phone:user.phone,displayName:user.displayName};
+  publicUser(user: {id:string;email:string|null;phone:string|null;displayName:string|null;role:'USER'|'ADMIN'}): AuthUser {
+    return {id:user.id,email:user.email,phone:user.phone,displayName:user.displayName,role:user.role};
   }
 }

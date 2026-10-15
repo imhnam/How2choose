@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post, Query, Req, Res, UseGuards, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, Req, Res, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { CredentialsDto } from './auth.dto';
+import { CredentialsDto, RegisterDto, UpdateProfileDto } from './auth.dto';
 import { AuthRequest, GOOGLE_STATE_COOKIE, SESSION_COOKIE } from './auth.types';
 import { GoogleService } from './google.service';
 import { SessionGuard } from './session.guard';
@@ -17,8 +17,8 @@ function setSession(res:Response, token:string, expiresAt:Date) {
 export class AuthController {
   constructor(private readonly auth:AuthService,private readonly google:GoogleService) {}
   @Post('register')
-  async register(@Body() body:CredentialsDto,@Res({passthrough:true}) res:Response) {
-    const result=await this.auth.register(body.identifier,body.password);setSession(res,result.token,result.expiresAt);return {user:result.user};
+  async register(@Body() body:RegisterDto,@Res({passthrough:true}) res:Response) {
+    const result=await this.auth.register(body.identifier,body.password,body.displayName);setSession(res,result.token,result.expiresAt);return {user:result.user};
   }
   @Post('login')
   async login(@Body() body:CredentialsDto,@Res({passthrough:true}) res:Response) {
@@ -30,6 +30,10 @@ export class AuthController {
   }
   @Get('me') @UseGuards(SessionGuard)
   me(@Req() req:AuthRequest) { return {user:req.authUser}; }
+  @Patch('me') @UseGuards(SessionGuard)
+  async updateMe(@Req() req:AuthRequest,@Body() body:UpdateProfileDto) {
+    return {user:await this.auth.updateProfile(req.authUser!.id,body.displayName)};
+  }
   @Get('providers')
   providers() { return {google:this.google.isConfigured()}; }
   @Get('google/start')

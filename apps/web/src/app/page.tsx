@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { HomeAccountNav } from '@/components/home-account-nav';
 export const dynamic = 'force-dynamic';
 async function getApiStatus() {
   try {
@@ -11,14 +12,14 @@ export default async function Home() {
   const apiReady = await getApiStatus();
   return <main className="mx-auto max-w-6xl px-6 py-8 sm:px-12">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-green-900/15 pb-6">
-      <span className="text-xl font-bold tracking-tight">howtochoose<span className="text-orange-600">.</span></span>
-      <div className="flex items-center gap-4 text-sm"><Link href="/login" className="font-semibold">Đăng nhập</Link><Link href="/register" className="rounded-full bg-green-900 px-4 py-2 font-semibold text-white">Tạo tài khoản</Link></div>
+      <span className="text-xl font-bold tracking-tight">How2choose</span>
+      <HomeAccountNav />
     </header>
     <section className="max-w-3xl py-20 sm:py-28">
       <p className="mb-5 text-xs font-bold uppercase tracking-[0.25em] text-green-800">Dành cho những người bạn quan tâm</p>
       <h1 className="text-5xl font-semibold leading-tight tracking-tight sm:text-7xl">Một món quà.<br /><span className="text-orange-600">Nhiều điều muốn nói.</span></h1>
-        <p className="mt-7 max-w-xl text-lg leading-8 text-stone-600">Howtochoose đang được xây dựng để giúp bạn chọn quà theo sở thích, dịp tặng và ngân sách — và ghi nhớ những món quà đã trao.</p>
-        <Link href="/recipients" className="mt-8 inline-block rounded-xl bg-green-900 px-6 py-3 font-semibold text-white">Tạo hồ sơ người nhận</Link>
+        <p className="mt-7 max-w-xl text-lg leading-8 text-stone-600">How2choose đang được xây dựng để giúp bạn chọn quà theo sở thích, dịp tặng và ngân sách — và ghi nhớ những món quà đã trao.</p>
+        <div className="mt-8 flex flex-wrap gap-3"><Link href="/catalog" className="inline-block rounded-xl bg-orange-600 px-6 py-3 font-semibold text-white">Xem catalog</Link><Link href="/recipients" className="inline-block rounded-xl border border-green-900/20 px-6 py-3 font-semibold">Tạo hồ sơ người nhận</Link></div>
     </section>
     <section className="grid gap-5 md:grid-cols-3" aria-label="Các tính năng dự kiến">
       {[

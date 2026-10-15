@@ -16,12 +16,13 @@
     "test": "npm run test -w @howtochoose/api",
     "check": "npm run lint && npm run typecheck && npm test",
     "setup": "node scripts/setup-env.mjs",
-    "db:up": "docker compose up -d db",
+    "db:up": "docker compose up -d db minio",
     "db:down": "docker compose down",
     "db:generate": "npm run db:generate -w @howtochoose/api",
     "db:validate": "npm run db:validate -w @howtochoose/api",
     "db:migrate": "npm run db:migrate -w @howtochoose/api --",
     "db:deploy": "npm run db:deploy -w @howtochoose/api",
+    "db:seed": "node scripts/seed-catalog.mjs",
     "db:studio": "npm run db:studio -w @howtochoose/api"
   },
   "devDependencies": {

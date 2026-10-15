@@ -15,7 +15,7 @@ Giúp người dùng chọn và mua quà phù hợp cho bạn bè, người yêu
 
 ## Phạm vi MVP
 - Hồ sơ người nhận bằng form: tên, quan hệ, sở thích, điều không thích, ghi chú. Cho phép trùng tên.
-- Catalog mẫu 30–50 sản phẩm, giá VND, số lượng tồn và phân loại.
+- Catalog mẫu bằng dữ liệu seed, gồm danh mục nhiều cấp, sản phẩm thuộc nhiều danh mục và biến thể theo màu/kích thước/chất liệu. Mỗi biến thể có thể có media riêng.
 - AI gợi ý sản phẩm hợp lệ và giải thích lý do; hỏi thêm khi thiếu thông tin.
 - Lịch sử quà theo người nhận; mặc định tránh sản phẩm đã xác nhận tặng.
 - Tạo đơn và tích hợp VNPAY sandbox.
@@ -27,6 +27,13 @@ Giúp người dùng chọn và mua quà phù hợp cho bạn bè, người yêu
 - Mua hàng và xác nhận đã tặng là hai sự kiện khác nhau.
 - Giá, tồn kho và ID sản phẩm lấy từ backend, không tin dữ liệu AI hoặc trình duyệt.
 - Khi không có sản phẩm phù hợp, thông báo rõ và đề nghị thay đổi tiêu chí.
+
+## Catalog MVP
+- Catalog giai đoạn đầu dùng dữ liệu giả lập trong database; trang admin tạo/sửa sản phẩm sẽ làm sau.
+- Danh mục có thể lồng nhau. Một sản phẩm có thể thuộc nhiều danh mục.
+- Sản phẩm lưu thương hiệu, nhà cung cấp dạng text, SKU ở biến thể, tồn kho, lượt mua và điểm đánh giá đã seed.
+- Giảm giá hỗ trợ đồng thời phần trăm và số tiền cố định. Giá hiệu lực = giá gốc trừ phần trăm rồi trừ số tiền cố định, không thấp hơn 0.
+- Trang ưu tiên trong giai đoạn này: danh mục, danh sách sản phẩm và chi tiết sản phẩm; chưa lọc theo hồ sơ người nhận trong catalog.
 
 ## Giai đoạn sau
 Tạo/cập nhật hồ sơ từ chat với xác nhận trước khi lưu; ghi nhận quà mua bên ngoài; nhắc ngày; quy tắc tặng lại đồ tiêu hao; giao hàng thật; xác minh email/SMS, khôi phục mật khẩu và liên kết nhiều cách đăng nhập.

@@ -2,6 +2,7 @@
 
 ## Cách đăng nhập
 - Email/mật khẩu hoặc số điện thoại/mật khẩu; số nội địa Việt Nam 10 chữ số bắt đầu bằng 0 được chuẩn hóa thành +84. Số quốc tế dùng E.164.
+- Đăng ký local bắt buộc tên hiển thị từ 2–80 ký tự; người dùng có thể cập nhật tên trong trang cá nhân. Tài khoản cũ thiếu tên phải bổ sung trước khi quản lý người nhận.
 - Google OAuth 2.0 authorization code flow. Backend đổi code và xác thực ID token; dùng Google `sub` làm định danh.
 - Google chỉ xuất hiện trên UI khi có Client ID, Secret và callback URI.
 
@@ -19,7 +20,7 @@
 - Cần bổ sung các mục này trước khi mở đăng ký công khai.
 
 ## Tiêu chí nghiệm thu
-1. Đăng ký bằng email hoặc điện thoại, đăng nhập và đăng xuất được.
+1. Đăng ký bằng tên hiển thị và email hoặc điện thoại, đăng nhập và đăng xuất được.
 2. Sai mật khẩu bị từ chối; mật khẩu không lưu dạng rõ.
 3. Tải lại trang vẫn còn phiên; đăng xuất làm phiên mất hiệu lực.
 4. API hồ sơ không có phiên trả 401; tài khoản khác không đọc/sửa hồ sơ.

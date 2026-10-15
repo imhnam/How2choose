@@ -4,13 +4,21 @@ export type Recipient = {
   id: string; displayName: string; relationship: string | null;
   interests: string[]; dislikes: string[]; notes: string | null;
 };
+export type CatalogCategory = { id: string; slug: string; name: string; description: string | null; parentId: string | null; sortOrder: number; children: CatalogCategory[] };
+export type ProductMedia = { id: string; type: 'IMAGE' | 'VIDEO'; originalName: string; mimeType: string; sizeBytes: number; sortOrder: number; url: string };
+export type ProductVariant = { id: string; sku: string; name: string | null; color: string | null; size: string | null; material: string | null; priceVnd: number; priceAfterDiscountVnd: number; stock: number; discountPercent: number | null; discountAmountVnd: number | null; media: ProductMedia[] };
+export type CatalogProduct = { id: string; slug: string; name: string; description: string; priceVnd: number; priceAfterDiscountVnd: number; stock: number; tags: string[]; brand: string | null; supplier: string | null; purchaseCount: number; ratingAverage: number; ratingCount: number; discountPercent: number | null; discountAmountVnd: number | null; categories: Array<{ id: string; slug: string; name: string }>; variants: ProductVariant[] };
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
+    const headers = new Headers(options.headers);
+    if (!(typeof FormData !== 'undefined' && options.body instanceof FormData) && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
     response = await fetch(API_URL + '/api' + path, {
       ...options,
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...options.headers },
+      headers,
     });
   } catch {
     throw new Error('Không kết nối được máy chủ. Vui lòng kiểm tra kết nối và thử lại.');

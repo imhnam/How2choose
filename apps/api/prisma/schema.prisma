@@ -6,6 +6,17 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ProductMediaType {
+  IMAGE
+  VIDEO
+}
+
 model User {
   id String @id @default(cuid())
   email String? @unique
@@ -13,6 +24,8 @@ model User {
   googleSub String? @unique
   passwordHash String?
   displayName String?
+  role UserRole @default(USER)
+  avatarObjectKey String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sessions Session[]
@@ -52,7 +65,80 @@ model Product {
   priceVnd Int
   stock Int @default(0)
   tags String[]
+  brand String?
+  supplier String?
+  purchaseCount Int @default(0)
+  ratingAverage Float @default(0)
+  ratingCount Int @default(0)
+  discountPercent Int?
+  discountAmountVnd Int?
   active Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  media ProductMedia[]
+  categories ProductCategory[]
+  variants ProductVariant[]
+}
+
+model Category {
+  id String @id @default(cuid())
+  slug String @unique
+  name String
+  description String?
+  parentId String?
+  parent Category? @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  sortOrder Int @default(0)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  products ProductCategory[]
+  @@index([parentId, sortOrder])
+}
+
+model ProductCategory {
+  productId String
+  categoryId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+model ProductVariant {
+  id String @id @default(cuid())
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku String @unique
+  name String?
+  color String?
+  size String?
+  material String?
+  priceVnd Int
+  stock Int @default(0)
+  discountPercent Int?
+  discountAmountVnd Int?
+  active Boolean @default(true)
+  media ProductMedia[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([productId, active])
+}
+
+model ProductMedia {
+  id String @id @default(cuid())
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  type ProductMediaType
+  objectKey String @unique
+  originalName String
+  mimeType String
+  sizeBytes Int
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId, sortOrder])
+  @@index([variantId, sortOrder])
 }

@@ -3,7 +3,7 @@
 Website gợi ý và mua quà theo hồ sơ người nhận, ngân sách, dịp tặng và lịch sử quà.
 
 ## Trạng thái
-Đã có đăng ký/đăng nhập bằng email hoặc số điện thoại và mật khẩu, phiên cookie, API Google OAuth, form hồ sơ người nhận. Google login thật cần credentials riêng của bạn. Catalog API, AI, giỏ hàng và payment chưa triển khai.
+Đã có đăng ký/đăng nhập bằng email hoặc số điện thoại và mật khẩu, phiên cookie, API Google OAuth, form hồ sơ người nhận, MinIO và catalog MVP. Google login thật cần credentials riêng của bạn. AI, giỏ hàng và payment chưa triển khai.
 
 ## Yêu cầu
 - Node.js 22.12+ và npm 10+.
@@ -14,10 +14,17 @@ Website gợi ý và mua quà theo hồ sơ người nhận, ngân sách, dịp 
 2. `npm.cmd run setup`
 3. `npm.cmd run db:up`
 4. `npm.cmd run db:deploy`
-5. `npm.cmd run db:generate`
-6. `npm.cmd run dev`
+5. `npm.cmd run db:seed`
+6. `npm.cmd run db:generate`
+7. `npm.cmd run dev`
 
 Web: http://localhost:3000 — API: http://localhost:3001/api — Swagger: http://localhost:3001/api/docs — readiness: http://localhost:3001/api/health/ready
+
+`db:up` khởi động cả PostgreSQL và MinIO. MinIO API: http://localhost:9000 — console: http://localhost:9001. Tài khoản local nằm trong `compose.yaml` và chỉ dùng cho môi trường phát triển.
+
+Avatar được tải lên bằng tài khoản đang đăng nhập. Upload/xóa ảnh hoặc video sản phẩm yêu cầu `User.role = ADMIN`; trong local có thể mở `npm.cmd run db:studio` để đặt quyền cho tài khoản quản trị. Các endpoint media có thể thử tại Swagger.
+
+Catalog MVP có các endpoint `GET /api/catalog/categories`, `GET /api/catalog/products?category=...&q=...` và `GET /api/catalog/products/:slug`; giao diện nằm tại `http://localhost:3000/catalog`.
 
 Nếu web hiện “Không kết nối được máy chủ” hoặc trình duyệt báo `Failed to fetch`, kiểm tra `http://localhost:3001/api/health`. Nếu địa chỉ này không mở được, chạy `npm.cmd run dev` từ thư mục gốc để khởi động cả web và API; nếu web đã chạy riêng, có thể chạy `npm.cmd run dev -w @howtochoose/api` trong một terminal khác. Khởi động lại web sau khi sửa `apps/web/.env.local`.
 
@@ -40,6 +47,7 @@ Trong chế độ Testing của Google, thêm tài khoản của bạn vào danh
 - `npm.cmd run db:validate`: kiểm tra schema.
 - `npm.cmd run db:migrate -- --name ten_thay_doi`: tạo migration mới.
 - `npm.cmd run db:deploy`: áp dụng migration đã lưu.
+- `npm.cmd run db:seed`: nạp dữ liệu catalog giả lập, có thể chạy lại an toàn.
 
 ## Tài liệu
 `docs/product.md` mô tả MVP; `specs/authentication.md` và `specs/recipient-profile.md` là tiêu chí tính năng; `docs/architecture.md` ghi quyết định kỹ thuật; `docs/tasks.md` theo dõi tiến độ; `AGENTS.md` hướng dẫn agent.
