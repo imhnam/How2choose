@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import { api, AddressVersion, DeliveryAddress, Place } from '@/lib/api';
 
-export function AddressSelector({ onChange }: { onChange: (address: DeliveryAddress | null) => void }) {
-  const [version, setVersion] = useState<AddressVersion>('current');
+export function AddressSelector({ onChange, initialAddress = null }: { onChange: (address: DeliveryAddress | null) => void; initialAddress?: DeliveryAddress | null }) {
+  const [version, setVersion] = useState<AddressVersion>(initialAddress?.version ?? 'current');
   const [provinces, setProvinces] = useState<Place[]>([]);
   const [districts, setDistricts] = useState<Place[]>([]);
   const [wards, setWards] = useState<Place[]>([]);
-  const [provinceCode, setProvinceCode] = useState('');
-  const [districtCode, setDistrictCode] = useState('');
-  const [wardCode, setWardCode] = useState('');
-  const [addressLine, setAddressLine] = useState('');
+  const [provinceCode, setProvinceCode] = useState(initialAddress ? String(initialAddress.province.code) : '');
+  const [districtCode, setDistrictCode] = useState(initialAddress?.district ? String(initialAddress.district.code) : '');
+  const [wardCode, setWardCode] = useState(initialAddress ? String(initialAddress.ward.code) : '');
+  const [addressLine, setAddressLine] = useState(initialAddress?.addressLine ?? '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -57,18 +57,18 @@ export function AddressSelector({ onChange }: { onChange: (address: DeliveryAddr
     setProvinceCode(''); setDistrictCode(''); setWardCode(''); setError('');
   }
 
-  const selectClass = 'mt-2 w-full rounded-lg border border-green-900/15 bg-white px-3 py-3';
+  const selectClass = 'form-control mt-2';
   return <div className="space-y-4">
-    <fieldset><legend className="font-semibold">Địa chỉ theo địa giới</legend><div className="mt-2 flex flex-wrap gap-4 text-sm">
-      <label><input type="radio" name="address-version" checked={version === 'current'} onChange={() => changeVersion('current')} /> <span>Sau sáp nhập (từ 01/07/2025)</span></label>
-      <label><input type="radio" name="address-version" checked={version === 'legacy'} onChange={() => changeVersion('legacy')} /> <span>Trước sáp nhập</span></label>
+    <fieldset><legend className="text-sm font-semibold">Địa chỉ theo địa giới</legend><div className="mt-3 flex flex-wrap gap-4 text-sm">
+      <label className="flex items-center gap-2"><input type="radio" className="accent-[#193f32]" name="address-version" checked={version === 'current'} onChange={() => changeVersion('current')} /> <span>Sau sáp nhập (từ 01/07/2025)</span></label>
+      <label className="flex items-center gap-2"><input type="radio" className="accent-[#193f32]" name="address-version" checked={version === 'legacy'} onChange={() => changeVersion('legacy')} /> <span>Trước sáp nhập</span></label>
     </div></fieldset>
     <div className="grid gap-4 sm:grid-cols-2">
-      <label className="text-sm font-medium">Tỉnh/thành phố *<select required className={selectClass} value={provinceCode} onChange={event => { setProvinceCode(event.target.value); setDistrictCode(''); setWardCode(''); setDistricts([]); setWards([]); setLoading(Boolean(event.target.value)); }}><option value="">Chọn tỉnh/thành phố</option>{provinces.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
-      {version === 'legacy' && <label className="text-sm font-medium">Quận/huyện *<select required className={selectClass} value={districtCode} disabled={!provinceCode || loading} onChange={event => { setDistrictCode(event.target.value); setWardCode(''); setWards([]); setLoading(Boolean(event.target.value)); }}><option value="">Chọn quận/huyện</option>{districts.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>}
-      <label className="text-sm font-medium">Phường/xã *<select required className={selectClass} value={wardCode} disabled={!provinceCode || (version === 'legacy' && !districtCode) || loading} onChange={event => setWardCode(event.target.value)}><option value="">Chọn phường/xã</option>{wards.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+      <label className="text-sm font-semibold">Tỉnh/thành phố *<select required className={selectClass} value={provinceCode} onChange={event => { setProvinceCode(event.target.value); setDistrictCode(''); setWardCode(''); setDistricts([]); setWards([]); setLoading(Boolean(event.target.value)); }}><option value="">Chọn tỉnh/thành phố</option>{provinces.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+      {version === 'legacy' && <label className="text-sm font-semibold">Quận/huyện *<select required className={selectClass} value={districtCode} disabled={!provinceCode || loading} onChange={event => { setDistrictCode(event.target.value); setWardCode(''); setWards([]); setLoading(Boolean(event.target.value)); }}><option value="">Chọn quận/huyện</option>{districts.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>}
+      <label className="text-sm font-semibold">Phường/xã *<select required className={selectClass} value={wardCode} disabled={!provinceCode || (version === 'legacy' && !districtCode) || loading} onChange={event => setWardCode(event.target.value)}><option value="">Chọn phường/xã</option>{wards.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
     </div>
-    <label className="block text-sm font-medium">Số nhà, tên đường *<input required maxLength={200} value={addressLine} onChange={event => setAddressLine(event.target.value)} placeholder="Ví dụ: 12 Nguyễn Trãi" className={selectClass} /></label>
+    <label className="block text-sm font-semibold">Số nhà, tên đường *<input required maxLength={200} value={addressLine} onChange={event => setAddressLine(event.target.value)} placeholder="Ví dụ: 12 Nguyễn Trãi" className={selectClass} /></label>
     {loading && <p role="status" className="text-sm text-stone-500">Đang tải địa chỉ...</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
   </div>;

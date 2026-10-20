@@ -35,6 +35,13 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     userIds.push(a.body.user.id,b.body.user.id);
     expect(a.headers['set-cookie'][0]).toContain('HttpOnly');
     await first.get('/api/auth/me').expect(200);
+    await request(server).get('/api/auth/me/address').expect(401);
+    await request(server).post('/api/auth/me/address').send({}).expect(401);
+    const emptyAddress=await first.get('/api/auth/me/address').expect(200);
+    expect(emptyAddress.body.address).toBeNull();
+    await first.post('/api/auth/me/address').send({
+      recipientName:'Người nhận',phone:'invalid',version:'current',provinceCode:1,wardCode:1,addressLine:'12 Nguyễn Trãi',
+    }).expect(400);
     const updatedProfile=await first.patch('/api/auth/me').send({displayName:'Nam mới'}).expect(200);
     expect(updatedProfile.body.user.displayName).toBe('Nam mới');
     await request(server).get('/api/recipients').expect(401);

@@ -2,7 +2,7 @@ import { Body, Controller, Get, Patch, Post, Query, Req, Res, UseGuards, BadRequ
 import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { CredentialsDto, RegisterDto, UpdateProfileDto } from './auth.dto';
+import { CredentialsDto, RegisterDto, SaveAccountAddressDto, UpdateProfileDto } from './auth.dto';
 import { AuthRequest, GOOGLE_STATE_COOKIE, SESSION_COOKIE } from './auth.types';
 import { GoogleService } from './google.service';
 import { SessionGuard } from './session.guard';
@@ -33,6 +33,14 @@ export class AuthController {
   @Patch('me') @UseGuards(SessionGuard)
   async updateMe(@Req() req:AuthRequest,@Body() body:UpdateProfileDto) {
     return {user:await this.auth.updateProfile(req.authUser!.id,body.displayName)};
+  }
+  @Get('me/address') @UseGuards(SessionGuard)
+  async accountAddress(@Req() req:AuthRequest) {
+    return {address:await this.auth.accountAddress(req.authUser!.id)};
+  }
+  @Post('me/address') @UseGuards(SessionGuard)
+  async saveAccountAddress(@Req() req:AuthRequest,@Body() body:SaveAccountAddressDto) {
+    return {address:await this.auth.saveAccountAddress(req.authUser!.id,body)};
   }
   @Get('providers')
   providers() { return {google:this.google.isConfigured()}; }

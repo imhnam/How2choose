@@ -47,6 +47,16 @@ model User {
   displayName String?
   role UserRole @default(USER)
   avatarObjectKey String?
+  addressRecipientName String?
+  addressPhone String?
+  addressVersion String?
+  addressProvinceCode Int?
+  addressProvinceName String?
+  addressDistrictCode Int?
+  addressDistrictName String?
+  addressWardCode Int?
+  addressWardName String?
+  addressLine String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sessions Session[]

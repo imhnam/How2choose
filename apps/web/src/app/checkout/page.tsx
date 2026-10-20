@@ -101,29 +101,45 @@ export default function CheckoutPage() {
     finally { setRetryingShipment(false); }
   }
 
-  return <main className="mx-auto max-w-5xl px-6 py-8 sm:px-12">
-    <header className="flex items-center justify-between border-b border-green-900/15 pb-6"><Link href="/" className="text-xl font-bold">How2choose</Link><Link href="/cart" className="text-sm font-semibold text-green-900">Quay lại giỏ hàng</Link></header>
-    <h1 className="mt-10 text-4xl font-semibold">Thông tin giao hàng</h1>
-    {notice && <p role="status" className="mt-6 rounded-xl bg-green-50 p-4 text-sm text-green-900">{notice}</p>}
+  return <main className="page-container flex-1 py-8 sm:py-10">
+    <ol aria-label="Tiến trình đặt hàng" className="mb-7 flex flex-wrap items-center gap-3 text-sm">
+      <li className="flex items-center gap-2"><Link href="/cart" className="grid h-7 w-7 place-items-center rounded-full bg-[#193f32] text-white no-underline">✓</Link><Link href="/cart" className="font-semibold no-underline">Giỏ hàng</Link></li><span className="h-px w-8 bg-[#bac8bb]" />
+      <li aria-current={quote ? undefined : 'step'} className={`flex items-center gap-2 ${quote ? 'text-[#64756b]' : 'font-bold'}`}><span className={`grid h-7 w-7 place-items-center rounded-full ${quote ? 'border border-[#bac8bb]' : 'bg-[#193f32] text-white'}`}>2</span>Địa chỉ và vận chuyển</li><span className="h-px w-8 bg-[#bac8bb]" />
+      <li aria-current={quote ? 'step' : undefined} className={`flex items-center gap-2 ${quote ? 'font-bold' : 'text-[#64756b]'}`}><span className={`grid h-7 w-7 place-items-center rounded-full ${quote ? 'bg-[#193f32] text-white' : 'border border-[#bac8bb]'}`}>3</span>Thanh toán</li>
+    </ol>
+    <div className="flex flex-wrap items-end justify-between gap-4"><h1 className="text-4xl font-extrabold tracking-tight">Thanh toán</h1><Link href="/cart" className="text-sm font-semibold text-green-900 underline">Quay lại giỏ hàng</Link></div>
+    {notice && <p role="status" className="mt-6 rounded-xl bg-[#edf1e8] p-4 text-sm text-green-900">{notice}</p>}
     {error && <p role="alert" className="mt-6 rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {paidOrder?.status === 'PAID' && paidOrder.shipmentStatus === 'FAILED' && <button type="button" disabled={retryingShipment} onClick={retryShipment} className="mt-3 rounded-lg border border-green-900 px-4 py-2 text-sm font-semibold text-green-900 disabled:opacity-50">{retryingShipment ? 'Đang thử lại...' : 'Thử tạo lại vận đơn GHN'}</button>}
-    {items.length === 0 ? <div className="mt-8 rounded-2xl bg-white p-8"><p>Giỏ hàng đang trống.</p><Link href="/catalog" className="mt-4 inline-block font-semibold text-green-900 underline">Xem sản phẩm</Link></div> : <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_300px]">
-      <section className="space-y-6 rounded-2xl bg-white p-6 shadow-sm">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-medium">Tên người nhận *<input required maxLength={80} value={recipientName} onChange={event => { setRecipientName(event.target.value); setQuote(null); }} className="mt-2 w-full rounded-lg border border-green-900/15 bg-white px-3 py-3" /></label>
-          <label className="text-sm font-medium">Số điện thoại *<input required inputMode="tel" maxLength={13} value={phone} onChange={event => { setPhone(event.target.value); setQuote(null); }} placeholder="0912345678" className="mt-2 w-full rounded-lg border border-green-900/15 bg-white px-3 py-3" /></label>
+    {items.length === 0 ? <div className="surface mt-8 p-8"><p>Giỏ hàng đang trống.</p><Link href="/catalog" className="mt-4 inline-block font-semibold text-green-900 underline">Xem sản phẩm</Link></div> : <div className="mt-7 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-4">
+      <section className="surface p-5 sm:p-6">
+        <h2 className="text-lg font-extrabold">Thông tin người nhận</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold">Họ và tên người nhận<input required maxLength={80} value={recipientName} onChange={event => { setRecipientName(event.target.value); setQuote(null); }} className="form-control mt-2" /></label>
+          <label className="text-sm font-semibold">Số điện thoại<input required inputMode="tel" maxLength={13} value={phone} onChange={event => { setPhone(event.target.value); setQuote(null); }} placeholder="0912345678" className="form-control mt-2" /></label>
         </div>
-        <AddressSelector onChange={onAddressChange} />
-        <label className="block text-sm font-medium">Ghi chú giao hàng<input maxLength={1000} value={deliveryNote} onChange={event => { setDeliveryNote(event.target.value); setQuote(null); }} className="mt-2 w-full rounded-lg border border-green-900/15 bg-white px-3 py-3" /></label>
-        {address?.version === 'current' && <p className="text-sm text-amber-800">GHN staging hiện chưa có bảng quy đổi địa giới mới để tính phí. Chọn địa chỉ trước 01/07/2025 để tiếp tục.</p>}
-        <button type="button" disabled={quoting || !address || address.version !== 'legacy' || !recipientName.trim() || !phone.trim() || items.length === 0} onClick={requestQuote} className="rounded-lg bg-green-900 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{quoting ? 'Đang lấy phí GHN...' : 'Tính phí giao hàng'}</button>
+        <label className="mt-4 block text-sm font-semibold">Lời nhắn trên thiệp <span className="font-normal text-[#64756b]">(không bắt buộc)</span><textarea maxLength={1000} value={deliveryNote} onChange={event => { setDeliveryNote(event.target.value); setQuote(null); }} placeholder="Viết lời chúc gửi đến người nhận..." className="form-control mt-2 min-h-24 resize-y" /></label>
+        <p className="mt-2 text-xs text-[#64756b]">Phiếu giao hàng sẽ không in giá tiền.</p>
       </section>
-      <aside className="h-fit rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-lg font-semibold">Tóm tắt đơn hàng</h2><ul className="mt-4 space-y-3">{summaryItems.map(item => <li key={item.key} className="flex justify-between gap-3 text-sm"><span>{item.productName} · {item.variantName} × {item.quantity}</span><span className="shrink-0">{money(item.lineTotalVnd)}</span></li>)}</ul>
+      <section className="surface p-5 sm:p-6">
+        <h2 className="text-lg font-extrabold">Địa chỉ giao hàng</h2>
+        <div className="mt-4"><AddressSelector onChange={onAddressChange} /></div>
+      </section>
+      <section className="surface p-5 sm:p-6">
+        <h2 className="text-lg font-extrabold">Vận chuyển và thanh toán</h2>
+        <div className="mt-4 rounded-xl border border-[#dfe5d9] bg-[#edf1e8] p-4"><p className="font-bold">Giao hàng GHN</p><p className="mt-1 text-sm text-[#64756b]">{quote ? `Phí vận chuyển ${money(quote.shippingFeeVnd)}` : 'Phí giao hàng sẽ được tính theo địa chỉ nhận.'}</p></div>
+        <div className="mt-3 rounded-xl border border-[#dfe5d9] p-4"><p className="font-bold">VNPAY</p><p className="mt-1 text-sm text-[#64756b]">Thanh toán an toàn qua cổng VNPAY sandbox.</p></div>
+        {address?.version === 'current' && <p className="text-sm text-amber-800">GHN staging hiện chưa có bảng quy đổi địa giới mới để tính phí. Chọn địa chỉ trước 01/07/2025 để tiếp tục.</p>}
+        <button type="button" disabled={quoting || !address || address.version !== 'legacy' || !recipientName.trim() || !phone.trim() || items.length === 0} onClick={requestQuote} className="btn-primary mt-4 disabled:cursor-not-allowed disabled:opacity-50">{quoting ? 'Đang lấy phí GHN...' : 'Tính phí giao hàng'}</button>
+      </section>
+      </div>
+      <aside className="surface h-fit p-5 sm:p-6"><div className="flex items-center justify-between"><h2 className="text-lg font-extrabold">Đơn hàng của bạn</h2><Link href="/cart" className="text-xs font-semibold underline">Sửa</Link></div><ul className="mt-4 space-y-4">{summaryItems.map(item => <li key={item.key} className="flex justify-between gap-3 text-sm"><span className="min-w-0"><span className="block font-semibold">{item.productName}</span><span className="mt-1 block text-xs text-[#64756b]">{item.variantName} · SL {item.quantity}</span></span><span className="shrink-0 font-semibold">{money(item.lineTotalVnd)}</span></li>)}</ul>
         <p className="mt-4 flex justify-between border-t border-green-900/10 pt-4 text-sm"><span>Tạm tính</span><span>{money(quote?.subtotalVnd ?? subtotal)}</span></p>
-        <p className="mt-2 flex justify-between text-sm"><span>Phí giao GHN</span><span>{quote ? money(quote.shippingFeeVnd) : 'Chưa tính'}</span></p>
-        <p className="mt-3 flex justify-between border-t border-green-900/10 pt-4 font-semibold"><span>Tổng thanh toán</span><span>{money(quote?.totalVnd ?? subtotal)}</span></p>
+        <p className="mt-2 flex justify-between text-sm"><span>Phí vận chuyển (GHN)</span><span>{quote ? money(quote.shippingFeeVnd) : 'Chưa tính'}</span></p>
+        <p className="mt-3 flex justify-between border-t border-green-900/10 pt-4 font-extrabold"><span>Tổng cộng</span><span className="text-xl">{money(quote?.totalVnd ?? subtotal)}</span></p>
         {quote && <><p className="mt-3 text-xs text-stone-500">Báo giá hết hạn lúc {new Date(quote.expiresAt).toLocaleTimeString('vi-VN')}.</p><button type="button" disabled={placing} onClick={placeOrder} className="mt-4 w-full rounded-lg bg-green-900 px-5 py-3 font-semibold text-white disabled:opacity-50">{placing ? 'Đang tạo đơn...' : 'Đặt hàng và thanh toán VNPAY'}</button></>}
-        {address && <p className="mt-4 text-sm text-stone-600">{address.addressLine}, {address.ward.name}{address.district ? `, ${address.district.name}` : ''}, {address.province.name}</p>}
+        {address && <p className="mt-4 border-t border-[#edf1e8] pt-3 text-xs leading-5 text-[#64756b]">{address.addressLine}, {address.ward.name}{address.district ? `, ${address.district.name}` : ''}, {address.province.name}</p>}
       </aside>
     </div>}
   </main>;

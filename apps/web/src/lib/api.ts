@@ -3,6 +3,7 @@ export type User = { id: string; email: string | null; phone: string | null; dis
 export type AddressVersion = 'current' | 'legacy';
 export type Place = { code: number; name: string };
 export type DeliveryAddress = { version: AddressVersion; province: Place; district: Place | null; ward: Place; addressLine: string };
+export type AccountAddress = DeliveryAddress & { recipientName: string; phone: string };
 export type Recipient = {
   id: string; displayName: string; relationship: string | null;
   interests: string[]; dislikes: string[]; notes: string | null;

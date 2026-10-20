@@ -2,10 +2,11 @@ import { BadRequestException, ConflictException, Injectable, UnauthorizedExcepti
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from './auth.types';
 import { hashPassword, newToken, normalizeIdentifier, tokenHash, verifyPassword } from './auth.utils';
+import { LocationsService } from '../locations/locations.service';
 const SESSION_DAYS = 30;
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly locations: LocationsService) {}
   async register(identifier: string, password: string, displayName: string) {
     const cleanDisplayName=displayName.trim();
     if(cleanDisplayName.length<2) throw new BadRequestException('Tên hiển thị phải có ít nhất 2 ký tự');
@@ -45,6 +46,53 @@ export class AuthService {
     if(cleanDisplayName.length<2) throw new BadRequestException('Tên hiển thị phải có ít nhất 2 ký tự');
     const user=await this.prisma.user.update({where:{id:userId},data:{displayName:cleanDisplayName}});
     return this.publicUser(user);
+  }
+  async accountAddress(userId:string) {
+    const user=await this.prisma.user.findUniqueOrThrow({where:{id:userId}});
+    if(!user.addressVersion || !user.addressProvinceCode || !user.addressProvinceName || !user.addressWardCode || !user.addressWardName || !user.addressLine || !user.addressRecipientName || !user.addressPhone) return null;
+    return {
+      recipientName:user.addressRecipientName,
+      phone:user.addressPhone,
+      version:user.addressVersion,
+      province:{code:user.addressProvinceCode,name:user.addressProvinceName},
+      district:user.addressDistrictCode && user.addressDistrictName ? {code:user.addressDistrictCode,name:user.addressDistrictName} : null,
+      ward:{code:user.addressWardCode,name:user.addressWardName},
+      addressLine:user.addressLine,
+    };
+  }
+  async saveAccountAddress(userId:string,input:{recipientName:string;phone:string;version:'legacy'|'current';provinceCode:number;districtCode?:number;wardCode:number;addressLine:string}) {
+    const provinces=await this.locations.provinces(input.version);
+    const province=provinces.find(place=>place.code===input.provinceCode);
+    if(!province) throw new BadRequestException('Tỉnh/thành phố không hợp lệ.');
+
+    let district:{code:number;name:string}|null=null;
+    let wards:{code:number;name:string}[];
+    if(input.version==='legacy') {
+      if(!input.districtCode) throw new BadRequestException('Vui lòng chọn quận/huyện.');
+      const districts=await this.locations.districts(input.provinceCode);
+      district=districts.find(place=>place.code===input.districtCode) ?? null;
+      if(!district) throw new BadRequestException('Quận/huyện không thuộc tỉnh/thành phố đã chọn.');
+      wards=await this.locations.wards('legacy',input.districtCode);
+    } else {
+      if(input.districtCode) throw new BadRequestException('Địa chỉ sau sáp nhập không sử dụng quận/huyện.');
+      wards=await this.locations.wards('current',input.provinceCode);
+    }
+    const ward=wards.find(place=>place.code===input.wardCode);
+    if(!ward) throw new BadRequestException('Phường/xã không thuộc địa chỉ đã chọn.');
+
+    await this.prisma.user.update({where:{id:userId},data:{
+      addressRecipientName:input.recipientName.trim(),
+      addressPhone:input.phone,
+      addressVersion:input.version,
+      addressProvinceCode:province.code,
+      addressProvinceName:province.name,
+      addressDistrictCode:district?.code ?? null,
+      addressDistrictName:district?.name ?? null,
+      addressWardCode:ward.code,
+      addressWardName:ward.name,
+      addressLine:input.addressLine.trim(),
+    }});
+    return this.accountAddress(userId);
   }
   async googleUser(subject: string, email: string, displayName?: string) {
     const existing=await this.prisma.user.findUnique({where:{googleSub:subject}});

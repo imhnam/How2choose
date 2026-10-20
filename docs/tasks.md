@@ -10,6 +10,7 @@
 - [x] API đăng ký, đăng nhập, đăng xuất và phiên cookie.
 - [x] API Google OAuth start/callback, xác thực ID token.
 - [x] API/UI tạo, liệt kê và sửa hồ sơ người nhận.
+- [x] Hồ sơ cá nhân cập nhật tên, ảnh đại diện và lưu địa chỉ giao hàng mặc định theo tài khoản.
 - [x] MinIO local, upload/xóa avatar và ảnh/video sản phẩm, presigned URL, quyền upload sản phẩm cho admin.
 - [ ] Cấu hình Google OAuth Client ID/Secret và kiểm tra đăng nhập Google thật.
 - [ ] Xác minh email/SMS, khôi phục mật khẩu, rate limiting trước khi mở đăng ký công khai.

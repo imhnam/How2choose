@@ -4,5 +4,6 @@ import { AuthService } from './auth.service';
 import { GoogleService } from './google.service';
 import { SessionGuard } from './session.guard';
 import { PrismaService } from '../prisma/prisma.service';
-@Module({controllers:[AuthController],providers:[AuthService,GoogleService,SessionGuard,PrismaService],exports:[AuthService,SessionGuard]})
+import { LocationsModule } from '../locations/locations.module';
+@Module({imports:[LocationsModule],controllers:[AuthController],providers:[AuthService,GoogleService,SessionGuard,PrismaService],exports:[AuthService,SessionGuard]})
 export class AuthModule {}

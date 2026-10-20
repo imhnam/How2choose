@@ -10,6 +10,7 @@ Giúp người dùng chọn và mua quà phù hợp cho bạn bè, người yêu
 - Đăng ký và đăng nhập bằng email hoặc số điện thoại cùng mật khẩu.
 - Có thể đăng nhập bằng Google sau khi cấu hình OAuth Client ID/Secret.
 - Người dùng duy trì phiên bằng cookie HttpOnly, có thể đăng xuất.
+- Tài khoản có thể lưu một địa chỉ giao hàng mặc định, gồm người nhận, số điện thoại và địa chỉ theo mã địa giới.
 - Email/số điện thoại đăng ký bằng mật khẩu chưa được xác minh ở giai đoạn này. Chưa có đặt lại mật khẩu hoặc liên kết Google với tài khoản hiện có. Chưa mở đăng ký công khai trước khi bổ sung xác minh và khôi phục tài khoản.
 - Google account được nhận diện bằng `sub` từ ID token đã xác thực. Không tự động liên kết theo email để tránh chiếm tài khoản local chưa xác minh.
 
