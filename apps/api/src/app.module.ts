@@ -5,5 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { RecipientsModule } from './recipients/recipients.module';
 import { MediaModule } from './media/media.module';
 import { CatalogModule } from './catalog/catalog.module';
-@Module({ imports:[AuthModule,RecipientsModule,MediaModule,CatalogModule],controllers: [HealthController], providers: [PrismaService] })
+import { LocationsModule } from './locations/locations.module';
+import { OrdersModule } from './orders/orders.module';
+@Module({ imports:[AuthModule,RecipientsModule,MediaModule,CatalogModule,LocationsModule,OrdersModule],controllers: [HealthController], providers: [PrismaService] })
 export class AppModule {}

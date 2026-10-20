@@ -17,6 +17,27 @@ enum ProductMediaType {
   VIDEO
 }
 
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PAYMENT_FAILED
+  CANCELLED
+  EXPIRED
+  PAYMENT_REVIEW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum ShipmentStatus {
+  NOT_CREATED
+  CREATED
+  FAILED
+}
+
 model User {
   id String @id @default(cuid())
   email String? @unique
@@ -30,6 +51,7 @@ model User {
   updatedAt DateTime @updatedAt
   sessions Session[]
   recipients Recipient[]
+  orders Order[]
 }
 
 model Session {
@@ -67,6 +89,7 @@ model Product {
   tags String[]
   brand String?
   supplier String?
+  shippingRegions String[]
   purchaseCount Int @default(0)
   ratingAverage Float @default(0)
   ratingCount Int @default(0)
@@ -116,12 +139,17 @@ model ProductVariant {
   material String?
   priceVnd Int
   stock Int @default(0)
+  packageWeightGram Int?
+  packageLengthCm Int?
+  packageWidthCm Int?
+  packageHeightCm Int?
   discountPercent Int?
   discountAmountVnd Int?
   active Boolean @default(true)
   media ProductMedia[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orderItems OrderItem[]
   @@index([productId, active])
 }
 
@@ -141,4 +169,83 @@ model ProductMedia {
 
   @@index([productId, sortOrder])
   @@index([variantId, sortOrder])
+}
+
+model Order {
+  id String @id @default(cuid())
+  orderNumber String @unique
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  status OrderStatus @default(PENDING_PAYMENT)
+  recipientName String
+  phone String
+  addressVersion String
+  provinceCode Int
+  provinceName String
+  districtCode Int?
+  districtName String?
+  wardCode Int
+  wardName String
+  addressLine String
+  deliveryNote String?
+  subtotalVnd Int
+  shippingFeeVnd Int
+  totalVnd Int
+  packageWeightGram Int
+  packageLengthCm Int
+  packageWidthCm Int
+  packageHeightCm Int
+  ghnServiceTypeId Int
+  expiresAt DateTime
+  idempotencyKey String
+  requestHash String
+  paidAt DateTime?
+  shipmentStatus ShipmentStatus @default(NOT_CREATED)
+  ghnOrderCode String? @unique
+  ghnShipmentError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items OrderItem[]
+  payment PaymentAttempt?
+  @@unique([ownerId, idempotencyKey])
+  @@index([ownerId, createdAt])
+  @@index([status, expiresAt])
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  variantId String
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  productName String
+  sku String
+  variantName String
+  originalUnitPriceVnd Int
+  discountVnd Int
+  unitPriceVnd Int
+  quantity Int
+  lineTotalVnd Int
+  packageWeightGram Int
+  packageLengthCm Int
+  packageWidthCm Int
+  packageHeightCm Int
+  @@index([orderId])
+}
+
+model PaymentAttempt {
+  id String @id @default(cuid())
+  orderId String @unique
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider String @default("VNPAY_SANDBOX")
+  txnRef String @unique
+  gatewayTransactionNo String? @unique
+  amountVnd Int
+  status PaymentStatus @default(PENDING)
+  responseCode String?
+  bankCode String?
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

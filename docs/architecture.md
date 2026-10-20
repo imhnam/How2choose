@@ -19,6 +19,8 @@
 - Auth: register/login/logout/me, Google OAuth start/callback và trạng thái provider.
 - Recipients: tạo, liệt kê, xem, sửa hồ sơ của chủ tài khoản.
 - Catalog: danh mục nhiều cấp, sản phẩm thuộc nhiều danh mục, sản phẩm có nhiều biến thể. Giá, giảm giá phần trăm và giảm giá số tiền được lưu ở sản phẩm/biến thể; giá hiệu lực do API tính.
+- Bộ lọc catalog thực hiện ở API. Giao diện chỉ hiển thị tỉnh/thành sau sáp nhập và gửi `v2:{code}`; API vẫn chấp nhận `v1:{code}` để tương thích. Khu vực giao hàng lưu bằng mã trên sản phẩm (`ALL`, `HN`, `HCM`, `DN`); ba tỉnh trùng mã được ánh xạ sang mã seed, các tỉnh khác chỉ khớp `ALL`. Khoảng giá xét giá sau giảm của từng biến thể và chỉ phân trang sau khi lọc. Cách này phù hợp catalog seed nhỏ, cần tối ưu truy vấn khi số sản phẩm tăng.
+- Locations: API trung gian gọi Province Open API v1/v2 theo từng cấp, timeout 8 giây và cache bộ nhớ 24 giờ; không tải toàn bộ cây địa giới. V1 gồm tỉnh/huyện/xã; v2 gồm tỉnh/xã. Endpoint đối chiếu xã cũ sang mới trả tất cả kết quả, không tự chọn khi có nhiều kết quả. Ứng dụng cần xử lý lúc nhà cung cấp tạm lỗi; trước khi nhận đơn thật phải xác thực địa chỉ trên backend và xem xét dữ liệu địa giới cục bộ.
 - Media sản phẩm được gắn ở cấp biến thể để mỗi màu/kích thước có thể có hình ảnh hoặc video riêng.
 - Media: avatar người dùng và nhiều ảnh/video cho mỗi sản phẩm. PostgreSQL chỉ lưu object key và metadata; binary nằm trong MinIO.
 

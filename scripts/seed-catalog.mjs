@@ -25,6 +25,28 @@ const products = [
   { id: 'seed_prod_book', slug: 'sach-tu-duy-thiet-ke', name: 'Sách Tư duy thiết kế', description: 'Cuốn sách nhập môn tư duy thiết kế cho người mới bắt đầu.', price: 179000, brand: 'Nhã Nam', supplier: 'Nhã Nam', tags: ['sách', 'phát triển bản thân'], cats: ['seed_cat_books'], rating: 4.6, count: 17, discountPercent: null, discountAmount: null, variants: [['seed_var_book_default', 'HTC-BOOK-DESIGN', null, null, 'Bìa mềm', 179000, 22]] },
 ];
 
+const shippingRegions = {
+  seed_prod_candle: ['HN', 'HCM'],
+  seed_prod_mug: ['ALL'],
+  seed_prod_headphones: ['ALL'],
+  seed_prod_journal: ['ALL'],
+  seed_prod_skincare: ['HN', 'HCM', 'DN'],
+  seed_prod_backpack: ['ALL'],
+  seed_prod_coffee: ['HN', 'DN'],
+  seed_prod_book: ['ALL'],
+};
+
+const packageProfiles = {
+  seed_prod_candle: [500, 10, 10, 15],
+  seed_prod_mug: [500, 9, 9, 26],
+  seed_prod_headphones: [300, 22, 20, 8],
+  seed_prod_journal: [350, 22, 16, 4],
+  seed_prod_skincare: [700, 24, 18, 10],
+  seed_prod_backpack: [900, 35, 26, 15],
+  seed_prod_coffee: [1000, 25, 20, 15],
+  seed_prod_book: [500, 23, 16, 5],
+};
+
 async function run() {
   const client = await pool.connect();
   try {
@@ -33,10 +55,11 @@ async function run() {
       await client.query(`INSERT INTO "Category" ("id","slug","name","description","parentId","sortOrder","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,NOW()) ON CONFLICT ("slug") DO UPDATE SET "name"=EXCLUDED."name", "description"=EXCLUDED."description", "parentId"=EXCLUDED."parentId", "sortOrder"=EXCLUDED."sortOrder", "updatedAt"=NOW()`, [id, slug, name, description, parentId, sortOrder]);
     }
     for (const product of products) {
-      await client.query(`INSERT INTO "Product" ("id","slug","name","description","priceVnd","stock","tags","brand","supplier","purchaseCount","ratingAverage","ratingCount","discountPercent","discountAmountVnd","active","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,true,NOW()) ON CONFLICT ("slug") DO UPDATE SET "name"=EXCLUDED."name", "description"=EXCLUDED."description", "priceVnd"=EXCLUDED."priceVnd", "stock"=EXCLUDED."stock", "tags"=EXCLUDED."tags", "brand"=EXCLUDED."brand", "supplier"=EXCLUDED."supplier", "purchaseCount"=EXCLUDED."purchaseCount", "ratingAverage"=EXCLUDED."ratingAverage", "ratingCount"=EXCLUDED."ratingCount", "discountPercent"=EXCLUDED."discountPercent", "discountAmountVnd"=EXCLUDED."discountAmountVnd", "updatedAt"=NOW()`, [product.id, product.slug, product.name, product.description, product.price, product.variants.reduce((sum, variant) => sum + variant[6], 0), product.tags, product.brand, product.supplier, product.count, product.rating, product.count, product.discountPercent, product.discountAmount]);
+      await client.query(`INSERT INTO "Product" ("id","slug","name","description","priceVnd","stock","tags","brand","supplier","shippingRegions","purchaseCount","ratingAverage","ratingCount","discountPercent","discountAmountVnd","active","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,true,NOW()) ON CONFLICT ("slug") DO UPDATE SET "name"=EXCLUDED."name", "description"=EXCLUDED."description", "priceVnd"=EXCLUDED."priceVnd", "stock"=EXCLUDED."stock", "tags"=EXCLUDED."tags", "brand"=EXCLUDED."brand", "supplier"=EXCLUDED."supplier", "shippingRegions"=EXCLUDED."shippingRegions", "purchaseCount"=EXCLUDED."purchaseCount", "ratingAverage"=EXCLUDED."ratingAverage", "ratingCount"=EXCLUDED."ratingCount", "discountPercent"=EXCLUDED."discountPercent", "discountAmountVnd"=EXCLUDED."discountAmountVnd", "updatedAt"=NOW()`, [product.id, product.slug, product.name, product.description, product.price, product.variants.reduce((sum, variant) => sum + variant[6], 0), product.tags, product.brand, product.supplier, shippingRegions[product.id] ?? ['ALL'], product.count, product.rating, product.count, product.discountPercent, product.discountAmount]);
       for (const categoryId of product.cats) await client.query(`INSERT INTO "ProductCategory" ("productId","categoryId") VALUES ($1,$2) ON CONFLICT DO NOTHING`, [product.id, categoryId]);
       for (const [id, sku, color, size, material, price, stock] of product.variants) {
-        await client.query(`INSERT INTO "ProductVariant" ("id","productId","sku","name","color","size","material","priceVnd","stock","active","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW()) ON CONFLICT ("sku") DO UPDATE SET "productId"=EXCLUDED."productId", "name"=EXCLUDED."name", "color"=EXCLUDED."color", "size"=EXCLUDED."size", "material"=EXCLUDED."material", "priceVnd"=EXCLUDED."priceVnd", "stock"=EXCLUDED."stock", "active"=true, "updatedAt"=NOW()`, [id, product.id, sku, color ?? null, color ?? null, size ?? null, material ?? null, price, stock]);
+        const [packageWeightGram, packageLengthCm, packageWidthCm, packageHeightCm] = packageProfiles[product.id];
+        await client.query(`INSERT INTO "ProductVariant" ("id","productId","sku","name","color","size","material","priceVnd","stock","packageWeightGram","packageLengthCm","packageWidthCm","packageHeightCm","active","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true,NOW()) ON CONFLICT ("sku") DO UPDATE SET "productId"=EXCLUDED."productId", "name"=EXCLUDED."name", "color"=EXCLUDED."color", "size"=EXCLUDED."size", "material"=EXCLUDED."material", "priceVnd"=EXCLUDED."priceVnd", "stock"=EXCLUDED."stock", "packageWeightGram"=COALESCE("ProductVariant"."packageWeightGram", EXCLUDED."packageWeightGram"), "packageLengthCm"=COALESCE("ProductVariant"."packageLengthCm", EXCLUDED."packageLengthCm"), "packageWidthCm"=COALESCE("ProductVariant"."packageWidthCm", EXCLUDED."packageWidthCm"), "packageHeightCm"=COALESCE("ProductVariant"."packageHeightCm", EXCLUDED."packageHeightCm"), "active"=true, "updatedAt"=NOW()`, [id, product.id, sku, color ?? null, color ?? null, size ?? null, material ?? null, price, stock, packageWeightGram, packageLengthCm, packageWidthCm, packageHeightCm]);
       }
     }
     await client.query('COMMIT');

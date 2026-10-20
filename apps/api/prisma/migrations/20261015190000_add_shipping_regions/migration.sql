@@ -1,0 +1,1 @@
+ALTER TABLE "Product" ADD COLUMN "shippingRegions" TEXT[] NOT NULL DEFAULT ARRAY['ALL']::TEXT[];

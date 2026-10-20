@@ -18,7 +18,7 @@ Giúp người dùng chọn và mua quà phù hợp cho bạn bè, người yêu
 - Catalog mẫu bằng dữ liệu seed, gồm danh mục nhiều cấp, sản phẩm thuộc nhiều danh mục và biến thể theo màu/kích thước/chất liệu. Mỗi biến thể có thể có media riêng.
 - AI gợi ý sản phẩm hợp lệ và giải thích lý do; hỏi thêm khi thiếu thông tin.
 - Lịch sử quà theo người nhận; mặc định tránh sản phẩm đã xác nhận tặng.
-- Tạo đơn và tích hợp VNPAY sandbox.
+- Tạo đơn, báo phí GHN staging và tích hợp VNPAY sandbox.
 
 ## Quy tắc
 - Hồ sơ người nhận thuộc tài khoản, không truy cập chéo.
@@ -29,19 +29,22 @@ Giúp người dùng chọn và mua quà phù hợp cho bạn bè, người yêu
 - Khi không có sản phẩm phù hợp, thông báo rõ và đề nghị thay đổi tiêu chí.
 
 ## Catalog MVP
-- Catalog giai đoạn đầu dùng dữ liệu giả lập trong database; trang admin tạo/sửa sản phẩm sẽ làm sau.
+- Catalog giai đoạn đầu dùng dữ liệu giả lập trong database; mỗi biến thể có dữ liệu cân nặng/kích thước đóng gói để tính phí GHN. Trang admin tạo/sửa sản phẩm sẽ làm sau.
 - Danh mục có thể lồng nhau. Một sản phẩm có thể thuộc nhiều danh mục.
 - Sản phẩm lưu thương hiệu, nhà cung cấp dạng text, SKU ở biến thể, tồn kho, lượt mua và điểm đánh giá đã seed.
 - Giảm giá hỗ trợ đồng thời phần trăm và số tiền cố định. Giá hiệu lực = giá gốc trừ phần trăm rồi trừ số tiền cố định, không thấp hơn 0.
 - Trang ưu tiên trong giai đoạn này: danh mục, danh sách sản phẩm và chi tiết sản phẩm; chưa lọc theo hồ sơ người nhận trong catalog.
+- Giỏ hàng giai đoạn đầu lưu ở trình duyệt để thử nghiệm nhanh; nút “Mua ngay” thêm biến thể đang chọn rồi mở giỏ hàng. Thanh toán thật và đồng bộ giỏ hàng với tài khoản sẽ làm cùng orders/payment.
+- Catalog có tìm kiếm ở header kèm gợi ý sản phẩm; bộ lọc “Khu vực” chỉ chọn tỉnh/thành sau sáp nhập 01/07/2025, cùng khoảng giá sau giảm và điểm đánh giá seed. Danh sách tỉnh/thành đến từ Province Open API. Dữ liệu giao hàng mẫu chỉ gồm Hà Nội, TP. Hồ Chí Minh, Đà Nẵng hoặc toàn quốc; các tỉnh khác chỉ hiện sản phẩm toàn quốc.
+- Checkout lấy báo giá GHN staging cho địa chỉ cũ (tỉnh → huyện → xã/phường), tạo đơn giữ hàng 15 phút và chuyển tới VNPAY sandbox. Shipment staging chỉ được tạo sau IPN xác thực. Địa chỉ mới chưa được quote do GHN fee API cần district/ward ID cũ.
 
 ## Giai đoạn sau
-Tạo/cập nhật hồ sơ từ chat với xác nhận trước khi lưu; ghi nhận quà mua bên ngoài; nhắc ngày; quy tắc tặng lại đồ tiêu hao; giao hàng thật; xác minh email/SMS, khôi phục mật khẩu và liên kết nhiều cách đăng nhập.
+Tạo/cập nhật hồ sơ từ chat với xác nhận trước khi lưu; ghi nhận quà mua bên ngoài; nhắc ngày; quy tắc tặng lại đồ tiêu hao; GHN production và hỗ trợ quote địa giới mới; xác minh email/SMS, khôi phục mật khẩu và liên kết nhiều cách đăng nhập.
 
 ## Giả định còn mở
 - Một cửa hàng, VND, giao diện tiếng Việt.
-- Ngân sách MVP tính tiền hàng, chưa tính phí vận chuyển.
-- Chỉ giao dịch thử nghiệm, không thu tiền thật.
+- Phí GHN staging được cộng vào tổng VNPAY sandbox; shop là bên trả cước cho GHN.
+- Chỉ giao dịch và vận chuyển thử nghiệm, không dùng VNPAY/GHN production.
 - Nhà cung cấp/model AI chưa chọn.
 - Cách xóa hồ sơ khi đã có lịch sử quà chưa chốt. Bản hiện tại chưa có thao tác xóa.
 
