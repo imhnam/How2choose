@@ -44,7 +44,7 @@ export default function Home() {
         {recipientError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{recipientError}</p>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {recipients.slice(0, 4).map((recipient, index) => <article key={recipient.id} className="surface flex min-h-44 flex-col p-4">
-            <div className="flex items-center gap-3"><span className={`grid h-10 w-10 place-items-center rounded-full font-bold ${index % 2 ? 'bg-[#e5ecdf]' : 'bg-[#fff0e8]'}`}>{recipient.displayName.slice(0, 2).toUpperCase()}</span><div><h3 className="font-bold">{recipient.relationship || recipient.displayName}</h3><p className="text-xs text-[#64756b]">{recipient.displayName}</p></div></div>
+            <div className="flex items-center gap-3"><span className={`grid h-10 w-10 place-items-center overflow-hidden rounded-full font-bold ${index % 2 ? 'bg-[#e5ecdf]' : 'bg-[#fff0e8]'}`}>{recipient.avatarUrl?<Image src={recipient.avatarUrl} alt={`Ảnh đại diện ${recipient.displayName}`} width={40} height={40} unoptimized className="h-full w-full object-cover" />:recipient.displayName.slice(0, 2).toUpperCase()}</span><div><h3 className="font-bold">{recipient.relationship || recipient.displayName}</h3><p className="text-xs text-[#64756b]">{recipient.displayName}</p></div></div>
             <p className="mt-5 text-xs text-[#64756b]">Sở thích</p><p className="mt-1 line-clamp-1 text-sm">{recipient.interests.join(' · ') || 'Thêm sở thích để cá nhân hóa gợi ý'}</p>
             <Link href={`/recommendations?recipient=${encodeURIComponent(recipient.id)}`} className="mt-auto pt-4 text-sm font-bold no-underline">Tìm quà cho {recipient.displayName} →</Link>
           </article>)}

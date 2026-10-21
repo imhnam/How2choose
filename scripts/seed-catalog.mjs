@@ -23,6 +23,16 @@ const products = [
   { id: 'seed_prod_backpack', slug: 'balo-laptop-daily', name: 'Balo laptop Daily', description: 'Balo chống nước, ngăn laptop 15 inch và nhiều ngăn phụ.', price: 699000, brand: 'Daily Carry', supplier: 'Daily Carry Vietnam', tags: ['đi học', 'đi làm'], cats: ['seed_cat_tech', 'seed_cat_home'], rating: 4.4, count: 19, discountPercent: null, discountAmount: 50000, variants: [['seed_var_bag_black', 'HTC-BAG-BLACK', 'Đen', '15 inch', 'Polyester', 699000, 13], ['seed_var_bag_beige', 'HTC-BAG-BEIGE', 'Be', '15 inch', 'Polyester', 699000, 8]] },
   { id: 'seed_prod_coffee', slug: 'bo-ca-phe-thu-cong', name: 'Bộ cà phê thủ công', description: 'Bộ cà phê rang xay và phin nhỏ cho những buổi sáng chậm rãi.', price: 329000, brand: 'Nâu Roastery', supplier: 'Nâu Roastery', tags: ['ẩm thực', 'thư giãn'], cats: ['seed_cat_home'], rating: 4.8, count: 31, discountPercent: 10, discountAmount: 20000, variants: [['seed_var_coffee_robusta', 'HTC-COF-ROB', 'Robusta', null, 'Cà phê rang xay', 329000, 17], ['seed_var_coffee_arabica', 'HTC-COF-ARA', 'Arabica', null, 'Cà phê rang xay', 359000, 11]] },
   { id: 'seed_prod_book', slug: 'sach-tu-duy-thiet-ke', name: 'Sách Tư duy thiết kế', description: 'Cuốn sách nhập môn tư duy thiết kế cho người mới bắt đầu.', price: 179000, brand: 'Nhã Nam', supplier: 'Nhã Nam', tags: ['sách', 'phát triển bản thân'], cats: ['seed_cat_books'], rating: 4.6, count: 17, discountPercent: null, discountAmount: null, variants: [['seed_var_book_default', 'HTC-BOOK-DESIGN', null, null, 'Bìa mềm', 179000, 22]] },
+  { id: 'seed_prod_tea', slug: 'hop-tra-thao-moc-an-nhien', name: 'Hộp trà thảo mộc An Nhiên', description: 'Hộp trà thảo mộc phối trộn dịu nhẹ, thích hợp làm quà thăm hỏi và thư giãn.', price: 289000, brand: 'Lá Việt', supplier: 'Lá Việt', tags: ['trà', 'thư giãn', 'quà thăm hỏi'], cats: ['seed_cat_home'], rating: 4.8, count: 26, discountPercent: 10, discountAmount: null, variants: [['seed_var_tea_lotus', 'HTC-TEA-LOTUS', 'Sen', null, 'Trà thảo mộc', 289000, 20], ['seed_var_tea_chrysanthemum', 'HTC-TEA-CHRYS', 'Cúc', null, 'Trà thảo mộc', 289000, 16]] },
+  { id: 'seed_prod_flower', slug: 'hoa-sap-luu-huong', name: 'Hộp hoa sáp lưu hương', description: 'Hộp hoa sáp trang trí bền màu, phù hợp tặng sinh nhật hoặc ngày kỷ niệm.', price: 349000, brand: 'Nhà Hoa Nhỏ', supplier: 'Nhà Hoa Nhỏ', tags: ['hoa', 'sinh nhật', 'kỷ niệm'], cats: ['seed_cat_home', 'seed_cat_experience'], rating: 4.7, count: 33, discountPercent: null, discountAmount: 20000, variants: [['seed_var_flower_pink', 'HTC-FLR-PINK', 'Hồng pastel', null, 'Sáp thơm', 349000, 14], ['seed_var_flower_cream', 'HTC-FLR-CREAM', 'Kem', null, 'Sáp thơm', 349000, 12]] },
+  { id: 'seed_prod_lamp', slug: 'den-ban-led-go-tre', name: 'Đèn bàn LED gỗ tre', description: 'Đèn bàn ánh sáng dịu với chân gỗ tre, phù hợp góc học tập và làm việc.', price: 459000, brand: 'Sáng Nhà', supplier: 'Sáng Nhà', tags: ['đèn bàn', 'góc làm việc', 'nhà cửa'], cats: ['seed_cat_home', 'seed_cat_tech'], rating: 4.6, count: 21, discountPercent: 8, discountAmount: null, variants: [['seed_var_lamp_natural', 'HTC-LAMP-NAT', 'Gỗ tự nhiên', null, 'Gỗ tre', 459000, 15]] },
+  { id: 'seed_prod_speaker', slug: 'loa-bluetooth-mini-go', name: 'Loa Bluetooth Mini Go', description: 'Loa Bluetooth nhỏ gọn, kết nối tiện lợi cho bàn làm việc hoặc những chuyến đi.', price: 590000, brand: 'SoundGo', supplier: 'SoundGo Official', tags: ['công nghệ', 'âm nhạc', 'du lịch'], cats: ['seed_cat_tech'], rating: 4.5, count: 18, discountPercent: null, discountAmount: 40000, variants: [['seed_var_speaker_black', 'HTC-SPK-BLACK', 'Đen', null, 'Nhựa ABS', 590000, 13], ['seed_var_speaker_green', 'HTC-SPK-GREEN', 'Xanh rêu', null, 'Nhựa ABS', 590000, 10]] },
+  { id: 'seed_prod_scarf', slug: 'khan-lua-to-tam-nhe', name: 'Khăn lụa tơ tằm nhẹ', description: 'Khăn lụa mềm nhẹ với họa tiết thanh lịch, dễ phối đồ trong nhiều dịp.', price: 520000, brand: 'Lụa An', supplier: 'Lụa An', tags: ['thời trang', 'lụa', 'quà tặng'], cats: ['seed_cat_personal'], rating: 4.9, count: 29, discountPercent: 12, discountAmount: null, variants: [['seed_var_scarf_blue', 'HTC-SCF-BLUE', 'Xanh hoa văn', null, 'Lụa tơ tằm', 520000, 11], ['seed_var_scarf_red', 'HTC-SCF-RED', 'Đỏ hoa văn', null, 'Lụa tơ tằm', 520000, 9]] },
+  { id: 'seed_prod_wallet', slug: 'vi-cardholder-da-toi-gian', name: 'Ví cardholder da tối giản', description: 'Ví đựng thẻ nhỏ gọn, thiết kế tối giản phù hợp sử dụng hằng ngày.', price: 320000, brand: 'Da Mộc', supplier: 'Da Mộc', tags: ['phụ kiện', 'đi làm', 'tối giản'], cats: ['seed_cat_personal'], rating: 4.6, count: 24, discountPercent: null, discountAmount: null, variants: [['seed_var_wallet_brown', 'HTC-WAL-BROWN', 'Nâu', null, 'Da PU', 320000, 17], ['seed_var_wallet_black', 'HTC-WAL-BLACK', 'Đen', null, 'Da PU', 320000, 15]] },
+  { id: 'seed_prod_plant', slug: 'bo-trong-cay-mini-de-ban', name: 'Bộ trồng cây mini để bàn', description: 'Bộ chậu nhỏ kèm hạt giống và hướng dẫn chăm sóc, tạo điểm xanh cho bàn làm việc.', price: 199000, brand: 'Mầm Xanh', supplier: 'Mầm Xanh', tags: ['cây xanh', 'nhà cửa', 'thư giãn'], cats: ['seed_cat_home'], rating: 4.7, count: 32, discountPercent: null, discountAmount: 15000, variants: [['seed_var_plant_terracotta', 'HTC-PLT-TERRA', 'Đất nung', null, 'Gốm', 199000, 20], ['seed_var_plant_white', 'HTC-PLT-WHITE', 'Trắng', null, 'Gốm', 199000, 18]] },
+  { id: 'seed_prod_boardgame', slug: 'tro-choi-ban-co-gia-dinh', name: 'Trò chơi bàn cờ gia đình', description: 'Trò chơi chiến thuật dễ học, dành cho những buổi tụ họp cùng gia đình và bạn bè.', price: 275000, brand: 'Vui Cùng Nhau', supplier: 'Vui Cùng Nhau', tags: ['trò chơi', 'gia đình', 'bạn bè'], cats: ['seed_cat_experience', 'seed_cat_books'], rating: 4.8, count: 27, discountPercent: 5, discountAmount: null, variants: [['seed_var_boardgame_standard', 'HTC-BRD-STD', 'Bản tiêu chuẩn', null, 'Giấy và gỗ', 275000, 19]] },
+  { id: 'seed_prod_spa', slug: 'voucher-spa-thu-gian', name: 'Voucher trải nghiệm spa thư giãn', description: 'Voucher trải nghiệm chăm sóc và thư giãn tại spa đối tác ở Hà Nội, TP. Hồ Chí Minh hoặc Đà Nẵng.', price: 650000, brand: 'An Nhiên Spa', supplier: 'An Nhiên Spa', tags: ['trải nghiệm', 'chăm sóc', 'thư giãn'], cats: ['seed_cat_experience', 'seed_cat_personal'], rating: 4.7, count: 16, discountPercent: null, discountAmount: null, variants: [['seed_var_spa_60', 'HTC-SPA-60', 'Liệu trình 60 phút', null, null, 650000, 10]] },
+  { id: 'seed_prod_chocolate', slug: 'hop-socola-thu-cong', name: 'Hộp sô-cô-la thủ công', description: 'Hộp sô-cô-la thủ công với nhiều vị, phù hợp làm quà cảm ơn hoặc chúc mừng.', price: 239000, brand: 'Ca Cao Nhà Làm', supplier: 'Ca Cao Nhà Làm', tags: ['ẩm thực', 'chúc mừng', 'quà cảm ơn'], cats: ['seed_cat_home'], rating: 4.8, count: 35, discountPercent: 7, discountAmount: null, variants: [['seed_var_chocolate_dark', 'HTC-CHO-DARK', 'Socola đen', null, 'Ca cao', 239000, 16], ['seed_var_chocolate_milk', 'HTC-CHO-MILK', 'Socola sữa', null, 'Ca cao', 239000, 18]] },
 ];
 
 const shippingRegions = {
@@ -34,6 +44,16 @@ const shippingRegions = {
   seed_prod_backpack: ['ALL'],
   seed_prod_coffee: ['HN', 'DN'],
   seed_prod_book: ['ALL'],
+  seed_prod_tea: ['ALL'],
+  seed_prod_flower: ['HN', 'HCM', 'DN'],
+  seed_prod_lamp: ['ALL'],
+  seed_prod_speaker: ['ALL'],
+  seed_prod_scarf: ['ALL'],
+  seed_prod_wallet: ['ALL'],
+  seed_prod_plant: ['HN', 'HCM', 'DN'],
+  seed_prod_boardgame: ['ALL'],
+  seed_prod_spa: ['HN', 'HCM', 'DN'],
+  seed_prod_chocolate: ['HN', 'HCM', 'DN'],
 };
 
 const packageProfiles = {
@@ -45,6 +65,16 @@ const packageProfiles = {
   seed_prod_backpack: [900, 35, 26, 15],
   seed_prod_coffee: [1000, 25, 20, 15],
   seed_prod_book: [500, 23, 16, 5],
+  seed_prod_tea: [700, 20, 15, 10],
+  seed_prod_flower: [800, 24, 20, 15],
+  seed_prod_lamp: [1100, 30, 18, 18],
+  seed_prod_speaker: [450, 16, 12, 10],
+  seed_prod_scarf: [250, 20, 15, 5],
+  seed_prod_wallet: [220, 14, 11, 5],
+  seed_prod_plant: [650, 18, 18, 16],
+  seed_prod_boardgame: [700, 25, 20, 6],
+  seed_prod_spa: [100, 15, 10, 2],
+  seed_prod_chocolate: [500, 20, 15, 8],
 };
 
 async function run() {

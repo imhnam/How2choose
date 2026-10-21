@@ -28,4 +28,31 @@ describe('LocationsService', () => {
     expect(() => service.code('1/../../')).toThrow(BadRequestException);
     expect(() => service.code('0')).toThrow(BadRequestException);
   });
+
+  it('resolves structured recipient addresses to authoritative place names', async () => {
+    const service = new LocationsService();
+    jest.spyOn(service, 'provinces').mockResolvedValue([{ code: 79, name: 'TP. Hồ Chí Minh' }]);
+    jest.spyOn(service, 'wards').mockResolvedValue([{ code: 76001, name: 'Phường Bến Nghé' }]);
+    await expect(service.resolveAddress({
+      version: 'current',
+      provinceCode: 79,
+      wardCode: 76001,
+      addressLine: '  12 Nguyễn Huệ  ',
+    })).resolves.toEqual({
+      addressVersion: 'current',
+      addressProvinceCode: 79,
+      addressProvinceName: 'TP. Hồ Chí Minh',
+      addressDistrictCode: null,
+      addressDistrictName: null,
+      addressWardCode: 76001,
+      addressWardName: 'Phường Bến Nghé',
+      addressLine: '12 Nguyễn Huệ',
+    });
+    await expect(service.resolveAddress({
+      version: 'current',
+      provinceCode: 1,
+      wardCode: 76001,
+      addressLine: '12 Nguyễn Huệ',
+    })).rejects.toThrow(BadRequestException);
+  });
 });

@@ -44,6 +44,7 @@ a { color: inherit; }
 .product-artwork { display: grid; place-items: center; overflow: hidden; }
 .product-artwork svg { width: 68%; max-width: 250px; height: 78%; max-height: 220px; }
 .form-control { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 11px 13px; color: var(--ink); outline: none; }
+.catalog-filters .form-control { padding: 8px 12px; }
 .form-control:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgb(25 63 50 / 9%); }
 .btn-primary, .btn-accent, .btn-outline { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0 20px; font-weight: 700; text-decoration: none; transition: transform .15s ease, background .15s ease; }
 .btn-primary { border: 1px solid var(--ink); background: var(--ink); color: white; }

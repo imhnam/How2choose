@@ -1,12 +1,24 @@
 ﻿export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-export type User = { id: string; email: string | null; phone: string | null; displayName: string | null };
+export type User = { id: string; email: string | null; phone: string | null; displayName: string | null; birthday: string | null };
 export type AddressVersion = 'current' | 'legacy';
 export type Place = { code: number; name: string };
 export type DeliveryAddress = { version: AddressVersion; province: Place; district: Place | null; ward: Place; addressLine: string };
 export type AccountAddress = DeliveryAddress & { recipientName: string; phone: string };
+export type RecipientAddressInput = { version: AddressVersion; provinceCode: number; districtCode?: number; wardCode: number; addressLine: string };
+export function toRecipientAddressInput(address: DeliveryAddress | null): RecipientAddressInput | null {
+  if (!address) return null;
+  return {
+    version: address.version,
+    provinceCode: address.province.code,
+    ...(address.version === 'legacy' && address.district ? { districtCode: address.district.code } : {}),
+    wardCode: address.ward.code,
+    addressLine: address.addressLine,
+  };
+}
 export type Recipient = {
-  id: string; displayName: string; relationship: string | null;
+  id: string; displayName: string; phone?: string | null; relationship: string | null; birthday: string | null;
   interests: string[]; dislikes: string[]; notes: string | null;
+  address: DeliveryAddress | null; avatarUrl: string | null;
 };
 export type CatalogCategory = { id: string; slug: string; name: string; description: string | null; parentId: string | null; sortOrder: number; children: CatalogCategory[] };
 export type ProductMedia = { id: string; type: 'IMAGE' | 'VIDEO'; originalName: string; mimeType: string; sizeBytes: number; sortOrder: number; url: string };

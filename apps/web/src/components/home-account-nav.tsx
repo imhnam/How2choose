@@ -16,6 +16,10 @@ export function HomeAccountNav() {
   const router = useRouter();
 
   useEffect(() => {
+    function updateAvatar(event: Event) {
+      if (event instanceof CustomEvent && typeof event.detail === 'string') setAvatarUrl(event.detail);
+    }
+    window.addEventListener('how2choose:account-avatar-updated', updateAvatar);
     api<{ user: User }>('/auth/me')
       .then(({ user: currentUser }) => {
         setUser(currentUser);
@@ -24,6 +28,7 @@ export function HomeAccountNav() {
           .catch(() => setAvatarUrl(null));
       })
       .catch(() => setUser(null));
+    return () => window.removeEventListener('how2choose:account-avatar-updated', updateAvatar);
   }, []);
 
   if (user === undefined) {

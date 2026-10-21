@@ -42,6 +42,30 @@ export class MediaService {
     return { ok: true };
   }
 
+  async uploadRecipientAvatar(userId: string, recipientId: string, file: Express.Multer.File | undefined) {
+    const current = await this.prisma.recipient.findFirst({
+      where: { id: recipientId, ownerId: userId },
+      select: { avatarObjectKey: true },
+    });
+    if (!current) throw new NotFoundException('Không tìm thấy hồ sơ người nhận.');
+    this.storage.validate(file, 'AVATAR');
+    const avatar = file!;
+    const objectKey = this.storage.createObjectKey('recipients', recipientId, avatar.mimetype);
+    await this.storage.put(objectKey, avatar);
+    try {
+      const updated = await this.prisma.recipient.updateMany({
+        where: { id: recipientId, ownerId: userId },
+        data: { avatarObjectKey: objectKey },
+      });
+      if (!updated.count) throw new NotFoundException('Không tìm thấy hồ sơ người nhận.');
+    } catch (error) {
+      await this.storage.remove(objectKey).catch(() => undefined);
+      throw error;
+    }
+    if (current.avatarObjectKey) await this.storage.remove(current.avatarObjectKey).catch(() => undefined);
+    return { url: await this.storage.signedUrl(objectKey) };
+  }
+
   async listProductMedia(productId: string) {
     const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
     if (!product) throw new NotFoundException('Không tìm thấy sản phẩm.');

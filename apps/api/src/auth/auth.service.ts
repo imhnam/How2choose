@@ -41,10 +41,13 @@ export class AuthService {
     return this.publicUser(session.user);
   }
   async logout(token?: string) { if(token) await this.prisma.session.deleteMany({where:{tokenHash:tokenHash(token)}}); }
-  async updateProfile(userId:string,displayName:string) {
+  async updateProfile(userId:string,displayName:string,birthday?:string|null) {
     const cleanDisplayName=displayName.trim();
     if(cleanDisplayName.length<2) throw new BadRequestException('Tên hiển thị phải có ít nhất 2 ký tự');
-    const user=await this.prisma.user.update({where:{id:userId},data:{displayName:cleanDisplayName}});
+    const user=await this.prisma.user.update({where:{id:userId},data:{
+      displayName:cleanDisplayName,
+      ...(birthday!==undefined?{birthday:birthday?new Date(`${birthday}T00:00:00.000Z`):null}:{}),
+    }});
     return this.publicUser(user);
   }
   async accountAddress(userId:string) {
@@ -61,36 +64,11 @@ export class AuthService {
     };
   }
   async saveAccountAddress(userId:string,input:{recipientName:string;phone:string;version:'legacy'|'current';provinceCode:number;districtCode?:number;wardCode:number;addressLine:string}) {
-    const provinces=await this.locations.provinces(input.version);
-    const province=provinces.find(place=>place.code===input.provinceCode);
-    if(!province) throw new BadRequestException('Tỉnh/thành phố không hợp lệ.');
-
-    let district:{code:number;name:string}|null=null;
-    let wards:{code:number;name:string}[];
-    if(input.version==='legacy') {
-      if(!input.districtCode) throw new BadRequestException('Vui lòng chọn quận/huyện.');
-      const districts=await this.locations.districts(input.provinceCode);
-      district=districts.find(place=>place.code===input.districtCode) ?? null;
-      if(!district) throw new BadRequestException('Quận/huyện không thuộc tỉnh/thành phố đã chọn.');
-      wards=await this.locations.wards('legacy',input.districtCode);
-    } else {
-      if(input.districtCode) throw new BadRequestException('Địa chỉ sau sáp nhập không sử dụng quận/huyện.');
-      wards=await this.locations.wards('current',input.provinceCode);
-    }
-    const ward=wards.find(place=>place.code===input.wardCode);
-    if(!ward) throw new BadRequestException('Phường/xã không thuộc địa chỉ đã chọn.');
-
+    const address=await this.locations.resolveAddress(input);
     await this.prisma.user.update({where:{id:userId},data:{
       addressRecipientName:input.recipientName.trim(),
       addressPhone:input.phone,
-      addressVersion:input.version,
-      addressProvinceCode:province.code,
-      addressProvinceName:province.name,
-      addressDistrictCode:district?.code ?? null,
-      addressDistrictName:district?.name ?? null,
-      addressWardCode:ward.code,
-      addressWardName:ward.name,
-      addressLine:input.addressLine.trim(),
+      ...address,
     }});
     return this.accountAddress(userId);
   }
@@ -105,7 +83,7 @@ export class AuthService {
     });
     return this.createSession(user.id);
   }
-  publicUser(user: {id:string;email:string|null;phone:string|null;displayName:string|null;role:'USER'|'ADMIN'}): AuthUser {
-    return {id:user.id,email:user.email,phone:user.phone,displayName:user.displayName,role:user.role};
+  publicUser(user: {id:string;email:string|null;phone:string|null;displayName:string|null;birthday:Date|null;role:'USER'|'ADMIN'}): AuthUser {
+    return {id:user.id,email:user.email,phone:user.phone,displayName:user.displayName,birthday:user.birthday?.toISOString().slice(0,10) ?? null,role:user.role};
   }
 }

@@ -32,7 +32,7 @@ export class AuthController {
   me(@Req() req:AuthRequest) { return {user:req.authUser}; }
   @Patch('me') @UseGuards(SessionGuard)
   async updateMe(@Req() req:AuthRequest,@Body() body:UpdateProfileDto) {
-    return {user:await this.auth.updateProfile(req.authUser!.id,body.displayName)};
+    return {user:await this.auth.updateProfile(req.authUser!.id,body.displayName,body.birthday)};
   }
   @Get('me/address') @UseGuards(SessionGuard)
   async accountAddress(@Req() req:AuthRequest) {

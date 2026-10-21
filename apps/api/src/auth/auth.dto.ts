@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min, MinLength } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min, MinLength } from 'class-validator';
 export class CredentialsDto {
   @IsString() @MinLength(3) @MaxLength(254) identifier!: string;
   @IsString() @MinLength(8) @MaxLength(128) password!: string;
@@ -10,6 +10,7 @@ export class RegisterDto extends CredentialsDto {
 
 export class UpdateProfileDto {
   @IsString() @MinLength(2) @MaxLength(80) displayName!: string;
+  @IsOptional() @IsDateString({ strict: true, strictSeparator: true }) @Matches(/^\d{4}-\d{2}-\d{2}$/) birthday?: string | null;
 }
 
 export class SaveAccountAddressDto {

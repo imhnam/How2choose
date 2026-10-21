@@ -2,6 +2,17 @@ import { BadGatewayException, BadRequestException, Injectable, NotFoundException
 
 export type AddressVersion = 'legacy' | 'current';
 type Place = { code: number; name: string; province_code?: number; district_code?: number };
+export type AddressInput = { version: AddressVersion; provinceCode: number; districtCode?: number; wardCode: number; addressLine: string };
+export type ResolvedAddress = {
+  addressVersion: AddressVersion;
+  addressProvinceCode: number;
+  addressProvinceName: string;
+  addressDistrictCode: number | null;
+  addressDistrictName: string | null;
+  addressWardCode: number;
+  addressWardName: string;
+  addressLine: string;
+};
 
 @Injectable()
 export class LocationsService {
@@ -49,6 +60,38 @@ export class LocationsService {
     const path = version === 'legacy' ? `/d/${parentCode}?depth=2` : `/p/${parentCode}?depth=2`;
     const parent = await this.request<{ wards: Place[] }>(version, path);
     return parent.wards.map(({ code, name }) => ({ code, name }));
+  }
+
+  async resolveAddress(input: AddressInput): Promise<ResolvedAddress> {
+    const provinces = await this.provinces(input.version);
+    const province = provinces.find(place => place.code === input.provinceCode);
+    if (!province) throw new BadRequestException('Tỉnh/thành phố không hợp lệ.');
+
+    let district: Place | null = null;
+    let wards: Place[];
+    if (input.version === 'legacy') {
+      if (!input.districtCode) throw new BadRequestException('Vui lòng chọn quận/huyện.');
+      const districts = await this.districts(input.provinceCode);
+      district = districts.find(place => place.code === input.districtCode) ?? null;
+      if (!district) throw new BadRequestException('Quận/huyện không thuộc tỉnh/thành phố đã chọn.');
+      wards = await this.wards('legacy', input.districtCode);
+    } else {
+      if (input.districtCode) throw new BadRequestException('Địa chỉ sau sáp nhập không sử dụng quận/huyện.');
+      wards = await this.wards('current', input.provinceCode);
+    }
+    const ward = wards.find(place => place.code === input.wardCode);
+    if (!ward) throw new BadRequestException('Phường/xã không thuộc địa chỉ đã chọn.');
+
+    return {
+      addressVersion: input.version,
+      addressProvinceCode: province.code,
+      addressProvinceName: province.name,
+      addressDistrictCode: district?.code ?? null,
+      addressDistrictName: district?.name ?? null,
+      addressWardCode: ward.code,
+      addressWardName: ward.name,
+      addressLine: input.addressLine.trim(),
+    };
   }
 
   async currentFromLegacyWard(wardCode: number) {

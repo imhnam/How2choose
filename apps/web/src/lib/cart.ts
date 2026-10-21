@@ -61,4 +61,4 @@ export function updateCartQuantity(key: string, quantity: number) {
 
 export function removeFromCart(key: string) { saveCart(getCart().filter(item => item.key !== key)); }
 export function clearCart() { saveCart([]); }
-export function cartCount(items = getCart()) { return items.reduce((total, item) => total + item.quantity, 0); }
+export function cartCount(items = getCart()) { return items.length; }

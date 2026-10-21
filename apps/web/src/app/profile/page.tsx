@@ -10,6 +10,7 @@ export default function PersonalProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
+  const [birthday, setBirthday] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [addressName, setAddressName] = useState('');
   const [addressPhone, setAddressPhone] = useState('');
@@ -32,6 +33,7 @@ export default function PersonalProfilePage() {
         if (!active) return;
         setUser(currentUser);
         setName(currentUser.displayName ?? '');
+        setBirthday(currentUser.birthday ?? '');
         setAddressName(currentUser.displayName ?? '');
         setAddressPhone(currentUser.phone ?? '');
         void api<{ address: AccountAddress | null }>('/auth/me/address')
@@ -64,10 +66,11 @@ export default function PersonalProfilePage() {
     try {
       const result = await api<{ user: User }>('/auth/me', {
         method: 'PATCH',
-        body: JSON.stringify({ displayName: name.trim() }),
+        body: JSON.stringify({ displayName: name.trim(), birthday: birthday || null }),
       });
       setUser(result.user);
       setName(result.user.displayName ?? '');
+      setBirthday(result.user.birthday ?? '');
       setAddressName(result.user.displayName ?? '');
       setSaved(true);
     } catch (reason) {
@@ -86,6 +89,7 @@ export default function PersonalProfilePage() {
     try {
       const result = await api<{ url: string }>('/media/avatar', { method: 'POST', body });
       setAvatarUrl(result.url);
+      window.dispatchEvent(new CustomEvent('how2choose:account-avatar-updated', { detail: result.url }));
     } catch (reason) {
       setAvatarError((reason as Error).message);
     } finally {
@@ -142,6 +146,7 @@ export default function PersonalProfilePage() {
         </div>
         {avatarError && <p role="alert" className="mt-3 text-sm text-red-700">{avatarError}</p>}
         <label className="mt-6 block text-sm font-semibold">Họ và tên<input required minLength={2} maxLength={80} value={name} onChange={event => { setName(event.target.value); setSaved(false); }} className="form-control mt-2" placeholder="Nhập họ và tên" /></label>
+        <label className="mt-4 block text-sm font-semibold">Ngày sinh<input type="date" value={birthday} onChange={event => { setBirthday(event.target.value); setSaved(false); }} className="form-control mt-2" /></label>
         <label className="mt-4 block text-sm font-semibold">Email đăng nhập<input readOnly value={user.email ?? 'Chưa cập nhật'} className="form-control mt-2 bg-[#f4f6f1] text-[#64756b]" /></label>
         <label className="mt-4 block text-sm font-semibold">Số điện thoại đăng nhập<input readOnly value={user.phone ?? 'Chưa cập nhật'} className="form-control mt-2 bg-[#f4f6f1] text-[#64756b]" /></label>
         <p className="mt-2 text-xs text-[#64756b]">Email và số điện thoại đăng nhập hiện chưa thể chỉnh sửa.</p>

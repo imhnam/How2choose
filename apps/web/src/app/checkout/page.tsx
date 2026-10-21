@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AddressSelector } from '@/components/address-selector';
-import { api, DeliveryAddress } from '@/lib/api';
+import { api, DeliveryAddress, Recipient, toRecipientAddressInput } from '@/lib/api';
 import { CartItem, getCart, removeFromCart } from '@/lib/cart';
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
@@ -15,6 +15,8 @@ type Order = { id: string; status: string; shipmentStatus: string; ghnOrderCode:
 
 export default function CheckoutPage() {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [recipientProfiles, setRecipientProfiles] = useState<Recipient[]>([]);
+  const [selectedRecipientId, setSelectedRecipientId] = useState('');
   const [address, setAddress] = useState<DeliveryAddress | null>(null);
   const [recipientName, setRecipientName] = useState('');
   const [phone, setPhone] = useState('');
@@ -26,10 +28,13 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [retryingShipment, setRetryingShipment] = useState(false);
   const [paidOrder, setPaidOrder] = useState<Order | null>(null);
+  const [savingRecipient, setSavingRecipient] = useState(false);
+  const [recipientSaved, setRecipientSaved] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
   const onAddressChange = useCallback((value: DeliveryAddress | null) => {
     setAddress(value);
     setQuote(null);
+    setRecipientSaved(false);
   }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => setItems(getCart()), 0);
@@ -49,10 +54,44 @@ export default function CheckoutPage() {
     }
     return () => window.clearTimeout(timer);
   }, []);
+  useEffect(() => {
+    let active = true;
+    const requestedRecipientId = new URLSearchParams(window.location.search).get('recipient');
+    api<Recipient[]>('/recipients')
+      .then(profiles => {
+        if (!active) return;
+        setRecipientProfiles(profiles);
+        const selected = profiles.find(profile => profile.id === requestedRecipientId);
+        if (requestedRecipientId && !selected) {
+          setError('Không tìm thấy hồ sơ người nhận đã chọn. Vui lòng chọn lại.');
+          return;
+        }
+        if (selected) {
+          setSelectedRecipientId(selected.id);
+          setRecipientName(selected.displayName);
+          setPhone(selected.phone ?? '');
+          setAddress(selected.address);
+        }
+      })
+      .catch(reason => { if (active) setError((reason as Error).message); });
+    return () => { active = false; };
+  }, []);
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.priceVnd * item.quantity, 0), [items]);
   const summaryItems = quote
     ? quote.items.map(item => ({ key: item.variantId, productName: item.productName, variantName: item.variantName, quantity: item.quantity, lineTotalVnd: item.lineTotalVnd }))
     : items.map(item => ({ key: item.key, productName: item.productName, variantName: item.variantLabel, quantity: item.quantity, lineTotalVnd: item.priceVnd * item.quantity }));
+  const selectedRecipient = recipientProfiles.find(profile => profile.id === selectedRecipientId) ?? null;
+
+  function selectRecipient(id: string) {
+    const selected = recipientProfiles.find(profile => profile.id === id) ?? null;
+    setSelectedRecipientId(selected?.id ?? '');
+    setRecipientName(selected?.displayName ?? '');
+    setPhone(selected?.phone ?? '');
+    setAddress(selected?.address ?? null);
+    setQuote(null);
+    setRecipientSaved(false);
+    idempotencyKey.current = null;
+  }
 
   const requestData = () => {
     if (!address) throw new Error('Vui lòng nhập địa chỉ giao hàng.');
@@ -101,6 +140,29 @@ export default function CheckoutPage() {
     finally { setRetryingShipment(false); }
   }
 
+  async function saveRecipientInfo() {
+    if (!selectedRecipient) return;
+    setError('');
+    setRecipientSaved(false);
+    setSavingRecipient(true);
+    try {
+      const updated = await api<Recipient>(`/recipients/${encodeURIComponent(selectedRecipient.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          displayName: recipientName.trim(),
+          phone: phone.trim(),
+          ...(address ? { address: toRecipientAddressInput(address) } : {}),
+        }),
+      });
+      setRecipientProfiles(profiles => profiles.map(profile => profile.id === updated.id ? updated : profile));
+      setRecipientName(updated.displayName);
+      setPhone(updated.phone ?? '');
+      setAddress(updated.address);
+      setRecipientSaved(true);
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setSavingRecipient(false); }
+  }
+
   return <main className="page-container flex-1 py-8 sm:py-10">
     <ol aria-label="Tiến trình đặt hàng" className="mb-7 flex flex-wrap items-center gap-3 text-sm">
       <li className="flex items-center gap-2"><Link href="/cart" className="grid h-7 w-7 place-items-center rounded-full bg-[#193f32] text-white no-underline">✓</Link><Link href="/cart" className="font-semibold no-underline">Giỏ hàng</Link></li><span className="h-px w-8 bg-[#bac8bb]" />
@@ -115,16 +177,18 @@ export default function CheckoutPage() {
       <div className="space-y-4">
       <section className="surface p-5 sm:p-6">
         <h2 className="text-lg font-extrabold">Thông tin người nhận</h2>
+        <label className="mt-4 block text-sm font-semibold">Hồ sơ người nhận<select value={selectedRecipientId} onChange={event => selectRecipient(event.target.value)} className="form-control mt-2"><option value="">Nhập thông tin thủ công</option>{recipientProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.displayName}</option>)}</select></label>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold">Họ và tên người nhận<input required maxLength={80} value={recipientName} onChange={event => { setRecipientName(event.target.value); setQuote(null); }} className="form-control mt-2" /></label>
-          <label className="text-sm font-semibold">Số điện thoại<input required inputMode="tel" maxLength={13} value={phone} onChange={event => { setPhone(event.target.value); setQuote(null); }} placeholder="0912345678" className="form-control mt-2" /></label>
+          <label className="text-sm font-semibold">Họ và tên người nhận<input required maxLength={80} value={recipientName} onChange={event => { setRecipientName(event.target.value); setQuote(null); setRecipientSaved(false); }} className="form-control mt-2" /></label>
+          <label className="text-sm font-semibold">Số điện thoại<input required inputMode="tel" maxLength={13} value={phone} onChange={event => { setPhone(event.target.value); setQuote(null); setRecipientSaved(false); }} placeholder="0912345678" className="form-control mt-2" /></label>
         </div>
+        {selectedRecipient && <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" disabled={savingRecipient || !recipientName.trim() || !phone.trim()} onClick={saveRecipientInfo} className="btn-outline min-h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50">{savingRecipient ? 'Đang lưu hồ sơ...' : 'Lưu thông tin này vào hồ sơ'}</button>{recipientSaved && <span role="status" className="text-sm text-green-800">Đã lưu thông tin vào hồ sơ.</span>}</div>}
         <label className="mt-4 block text-sm font-semibold">Lời nhắn trên thiệp <span className="font-normal text-[#64756b]">(không bắt buộc)</span><textarea maxLength={1000} value={deliveryNote} onChange={event => { setDeliveryNote(event.target.value); setQuote(null); }} placeholder="Viết lời chúc gửi đến người nhận..." className="form-control mt-2 min-h-24 resize-y" /></label>
         <p className="mt-2 text-xs text-[#64756b]">Phiếu giao hàng sẽ không in giá tiền.</p>
       </section>
       <section className="surface p-5 sm:p-6">
         <h2 className="text-lg font-extrabold">Địa chỉ giao hàng</h2>
-        <div className="mt-4"><AddressSelector onChange={onAddressChange} /></div>
+        <div className="mt-4"><AddressSelector key={selectedRecipientId || 'manual-address'} initialAddress={selectedRecipient?.address ?? null} onChange={onAddressChange} /></div>
       </section>
       <section className="surface p-5 sm:p-6">
         <h2 className="text-lg font-extrabold">Vận chuyển và thanh toán</h2>

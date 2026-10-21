@@ -93,7 +93,7 @@ export class StorageService {
     }
   }
 
-  createObjectKey(scope: 'avatars' | 'products', ownerId: string, mimeType: string) {
+  createObjectKey(scope: 'avatars' | 'recipients' | 'products', ownerId: string, mimeType: string) {
     return `${scope}/${ownerId}/${randomUUID()}.${EXTENSIONS[mimeType]}`;
   }
 

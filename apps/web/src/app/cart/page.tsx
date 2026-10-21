@@ -5,14 +5,30 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CartItem, CART_UPDATED_EVENT, cartCount, clearCart, getCart, removeFromCart, updateCartQuantity } from '@/lib/cart';
 import { ProductArtwork } from '@/components/product-artwork';
+import { api, Recipient } from '@/lib/api';
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedRecipientId, setSelectedRecipientId] = useState('');
+  const [recipientError, setRecipientError] = useState('');
+  const [recipientsLoading, setRecipientsLoading] = useState(true);
+  const [recipientMenuOpen, setRecipientMenuOpen] = useState(false);
   useEffect(() => { const sync = () => setItems(getCart()); const timer = window.setTimeout(sync, 0); window.addEventListener(CART_UPDATED_EVENT, sync); return () => { window.clearTimeout(timer); window.removeEventListener(CART_UPDATED_EVENT, sync); }; }, []);
+  useEffect(() => {
+    let active = true;
+    api<Recipient[]>('/recipients')
+      .then(data => { if (active) setRecipients(data); })
+      .catch(reason => { if (active) setRecipientError((reason as Error).message); })
+      .finally(() => { if (active) setRecipientsLoading(false); });
+    return () => { active = false; };
+  }, []);
   const subtotal = useMemo(() => items.reduce((total, item) => total + item.priceVnd * item.quantity, 0), [items]);
   const count = cartCount(items);
+  const selectedRecipient = recipients.find(person => person.id === selectedRecipientId) ?? null;
+  const checkoutHref = selectedRecipient ? `/checkout?recipient=${encodeURIComponent(selectedRecipient.id)}` : '/checkout';
   function update(key: string, quantity: number) { updateCartQuantity(key, quantity); setItems(getCart()); }
   function remove(key: string) { removeFromCart(key); setItems(getCart()); }
   function empty() { clearCart(); setItems([]); }
@@ -24,7 +40,7 @@ export default function CartPage() {
     </ol>
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><h1 className="text-4xl font-extrabold tracking-tight">Giỏ hàng</h1>{items.length > 0 && <button type="button" onClick={empty} className="text-sm text-[#64756b] underline">Xóa tất cả</button>}</div>
     {items.length === 0 ? <section className="surface mx-auto my-12 max-w-xl p-10 text-center"><span className="text-4xl">♧</span><h2 className="mt-4 text-xl font-bold">Giỏ hàng đang trống</h2><p className="mt-2 text-[#64756b]">Hãy bắt đầu chọn một món quà phù hợp.</p><Link href="/catalog" className="btn-primary mt-6">Khám phá quà tặng</Link></section> : <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#dfe5d9] bg-[#edf1e8] px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-white font-bold">♡</span><div><p className="text-sm font-bold">Món quà dành tặng người đặc biệt</p><p className="mt-1 text-xs text-[#64756b]">Bạn đã chọn {count} sản phẩm</p></div></div><Link href="/recipients" className="text-sm font-semibold underline">Chọn người nhận</Link></div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#dfe5d9] bg-[#edf1e8] px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-white font-bold">♡</span><div><p className="text-sm font-bold">Món quà dành tặng người đặc biệt</p><p className="mt-1 text-xs text-[#64756b]">Bạn đã chọn {count} loại sản phẩm{selectedRecipient ? ` · Người nhận: ${selectedRecipient.displayName}` : ''}</p></div></div><div className="relative"><button type="button" aria-expanded={recipientMenuOpen} aria-controls="cart-recipient-menu" onClick={() => setRecipientMenuOpen(open => !open)} className="btn-outline min-h-10 px-4 text-sm">{selectedRecipient?.displayName ?? (recipientsLoading ? 'Đang tải hồ sơ...' : 'Chọn người nhận')}</button>{recipientMenuOpen && <div id="cart-recipient-menu" className="absolute right-0 top-full z-20 mt-2 max-h-72 w-64 overflow-y-auto rounded-xl border border-[#dfe5d9] bg-white p-2 shadow-lg">{recipients.map(person => <button key={person.id} type="button" onClick={() => { setSelectedRecipientId(person.id); setRecipientMenuOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-[#edf1e8] ${selectedRecipientId === person.id ? 'font-bold text-[#193f32]' : ''}`}>{person.displayName}{person.phone ? <span className="block text-xs font-normal text-[#64756b]">{person.phone}</span> : null}</button>)}{!recipientsLoading && !recipients.length && <div className="p-2 text-sm text-[#64756b]">Chưa có hồ sơ người nhận. <Link href="/recipients" className="font-semibold underline">Tạo hồ sơ</Link></div>}{recipientError && <p role="alert" className="p-2 text-xs text-red-700">{recipientError}</p>}</div>}</div></div>
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
         <section aria-label="Sản phẩm trong giỏ" className="space-y-4">{items.map(item => <article key={item.key} className="surface flex gap-4 p-4 sm:gap-5 sm:p-5">
           <Link href={`/catalog/${item.slug}`} className="block w-24 shrink-0 overflow-hidden rounded-xl sm:w-28">
@@ -35,7 +51,7 @@ export default function CartPage() {
             <div className="mt-4 flex items-center justify-between"><div className="flex items-center rounded-full border border-[#dfe5d9] bg-white"><button type="button" aria-label={`Giảm ${item.productName}`} onClick={() => update(item.key, item.quantity - 1)} disabled={item.quantity <= 1} className="h-9 w-9 disabled:opacity-40">−</button><span className="w-7 text-center text-sm">{item.quantity}</span><button type="button" aria-label={`Tăng ${item.productName}`} onClick={() => update(item.key, item.quantity + 1)} disabled={item.quantity >= item.stock} className="h-9 w-9 disabled:opacity-40">+</button></div><button type="button" onClick={() => remove(item.key)} className="text-xs font-semibold text-[#64756b] underline">Xóa</button></div>
           </div>
         </article>)}</section>
-        <aside className="surface p-5 sm:p-6"><h2 className="text-lg font-extrabold">Tóm tắt đơn hàng</h2><label className="mt-5 flex gap-2"><input disabled placeholder="Mã giảm giá" className="form-control min-w-0" /><button type="button" disabled className="btn-outline min-h-10 px-4 text-xs opacity-60">Áp dụng</button></label><p className="mt-5 flex justify-between text-sm"><span className="text-[#64756b]">Tạm tính ({count} sản phẩm)</span><span>{money(subtotal)}</span></p><p className="mt-3 flex justify-between text-sm"><span className="text-[#64756b]">Phí vận chuyển</span><span>Tính sau</span></p><p className="mt-4 flex justify-between border-t border-[#dfe5d9] pt-4 font-bold"><span>Tổng cộng</span><span className="text-xl">{money(subtotal)}</span></p><Link href="/checkout" className="btn-accent mt-5 w-full">Tiến hành thanh toán</Link><p className="mt-4 text-xs leading-5 text-[#64756b]">🔒 Thanh toán an toàn qua VNPAY<br />♧ Giao hàng bởi GHN</p></aside>
+        <aside className="surface p-5 sm:p-6"><h2 className="text-lg font-extrabold">Tóm tắt đơn hàng</h2><div className="mt-5 flex items-center gap-2"><input disabled placeholder="Mã giảm giá" className="form-control min-w-0 flex-1" /><button type="button" disabled className="btn-outline min-h-10 shrink-0 whitespace-nowrap px-3 text-xs opacity-60">Áp dụng</button></div><p className="mt-5 flex justify-between text-sm"><span className="text-[#64756b]">Tạm tính ({count} loại sản phẩm)</span><span>{money(subtotal)}</span></p><p className="mt-3 flex justify-between text-sm"><span className="text-[#64756b]">Phí vận chuyển</span><span>Tính sau</span></p><p className="mt-4 flex justify-between border-t border-[#dfe5d9] pt-4 font-bold"><span>Tổng cộng</span><span className="text-xl">{money(subtotal)}</span></p><Link href={checkoutHref} className="btn-accent mt-5 w-full">Tiến hành thanh toán</Link></aside>
       </div>
       <Link href="/catalog" className="mt-5 inline-block text-sm font-semibold underline">← Tiếp tục chọn quà</Link>
     </>}

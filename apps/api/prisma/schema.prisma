@@ -45,6 +45,7 @@ model User {
   googleSub String? @unique
   passwordHash String?
   displayName String?
+  birthday DateTime? @db.Date
   role UserRole @default(USER)
   avatarObjectKey String?
   addressRecipientName String?
@@ -80,10 +81,21 @@ model Recipient {
   ownerId String
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   displayName String
+  phone String?
   relationship String?
+  birthday DateTime? @db.Date
   interests String[]
   dislikes String[]
   notes String?
+  avatarObjectKey String? @unique
+  addressVersion String?
+  addressProvinceCode Int?
+  addressProvinceName String?
+  addressDistrictCode Int?
+  addressDistrictName String?
+  addressWardCode Int?
+  addressWardName String?
+  addressLine String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([ownerId, createdAt])

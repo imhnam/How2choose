@@ -44,6 +44,19 @@ export class MediaController {
     return this.media.removeAvatar(request.authUser!.id);
   }
 
+  @Post('recipients/:recipientId/avatar')
+  @UseGuards(SessionGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } }, required: ['file'] } })
+  uploadRecipientAvatar(
+    @Req() request: AuthRequest,
+    @Param('recipientId') recipientId: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.media.uploadRecipientAvatar(request.authUser!.id, recipientId, file);
+  }
+
   @Get('products/:productId')
   listProductMedia(@Param('productId') productId: string) {
     return this.media.listProductMedia(productId);

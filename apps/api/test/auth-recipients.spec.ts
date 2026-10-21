@@ -39,22 +39,36 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     await request(server).post('/api/auth/me/address').send({}).expect(401);
     const emptyAddress=await first.get('/api/auth/me/address').expect(200);
     expect(emptyAddress.body.address).toBeNull();
+    expect((await first.get('/api/auth/me').expect(200)).body.user.birthday).toBeNull();
     await first.post('/api/auth/me/address').send({
       recipientName:'Người nhận',phone:'invalid',version:'current',provinceCode:1,wardCode:1,addressLine:'12 Nguyễn Trãi',
     }).expect(400);
-    const updatedProfile=await first.patch('/api/auth/me').send({displayName:'Nam mới'}).expect(200);
+    const updatedProfile=await first.patch('/api/auth/me').send({displayName:'Nam mới',birthday:'1990-05-14'}).expect(200);
     expect(updatedProfile.body.user.displayName).toBe('Nam mới');
+    expect(updatedProfile.body.user.birthday).toBe('1990-05-14');
+    await first.patch('/api/auth/me').send({displayName:'Nam mới',birthday:'2026-02-31'}).expect(400);
     await request(server).get('/api/recipients').expect(401);
-    const item=await first.post('/api/recipients').send({displayName:'An',relationship:'Bạn',interests:['sách'],dislikes:[],notes:''}).expect(201);
+    await request(server).post('/api/media/recipients/unknown/avatar').expect(401);
+    const item=await first.post('/api/recipients').send({displayName:'An',relationship:'Bạn',birthday:'2000-12-31',interests:['sách'],dislikes:[],notes:''}).expect(201);
+    expect(item.body.address).toBeNull();
+    expect(item.body.avatarUrl).toBeNull();
+    expect(item.body.birthday).toBe('2000-12-31');
+    await first.post('/api/recipients').send({
+      displayName:'Địa chỉ sai',interests:[],dislikes:[],address:{version:'unsupported',provinceCode:1,wardCode:1,addressLine:'12 Nguyễn Trãi'},
+    }).expect(400);
+    await first.post('/api/media/recipients/'+item.body.id+'/avatar').expect(400);
+    await second.post('/api/media/recipients/'+item.body.id+'/avatar').expect(404);
     await first.get('/api/recipients/'+item.body.id).expect(200);
     await second.get('/api/recipients/'+item.body.id).expect(404);
     await second.patch('/api/recipients/'+item.body.id).send({displayName:'Changed'}).expect(404);
     await second.get('/api/recipients').expect(200).expect([]);
     await first.post('/api/recipients').send({displayName:'A',interests:[],dislikes:[],ownerId:b.body.user.id}).expect(400);
-    await first.patch('/api/recipients/'+item.body.id).send({displayName:'An mới'}).expect(200);
+    await first.patch('/api/recipients/'+item.body.id).send({displayName:'An mới',phone:'0912345678',birthday:null}).expect(200);
     const list=await first.get('/api/recipients').expect(200);
     expect(list.body).toHaveLength(1);
     expect(list.body[0].displayName).toBe('An mới');
+    expect(list.body[0].phone).toBe('0912345678');
+    expect(list.body[0].birthday).toBeNull();
     await first.post('/api/auth/logout').expect(201);
     await first.get('/api/auth/me').expect(401);
   });

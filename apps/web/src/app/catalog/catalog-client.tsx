@@ -66,16 +66,16 @@ export default function CatalogClient({ initialCategory, initialSearch }: { init
     setRegion(''); setMinPrice(''); setMaxPrice(''); setMinRating(''); setPage(1); setLoading(true);
   }
 
-  return <main className="page-container flex-1 py-8">
-    <section className="flex flex-wrap items-end justify-between gap-4 py-6"><div><h1 className="text-4xl font-extrabold tracking-tight">Catalog quà tặng</h1></div></section>
+  return <main className="page-container flex-1 pb-8 pt-3">
+    <section className="flex flex-wrap items-end justify-between gap-4 py-3"><div><h1 className="text-4xl font-extrabold tracking-tight">Catalog quà tặng</h1></div></section>
 
-    <section aria-label="Bộ lọc sản phẩm" className="grid gap-3 rounded-2xl border border-[#dfe5d9] bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto] lg:items-end">
-      <label className="text-sm font-medium">Khu vực<select value={region} onChange={event => { setRegion(event.target.value); setPage(1); setLoading(true); }} className="form-control mt-2"><option value="">Mọi khu vực</option>{provinces.map(item => <option key={item.code} value={`v2:${item.code}`}>{item.name}</option>)}</select></label>
+    <section aria-label="Bộ lọc sản phẩm" className="catalog-filters grid gap-2 rounded-2xl border border-[#dfe5d9] bg-white p-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto] lg:items-end">
+      <label className="text-sm font-medium">Khu vực<select value={region} onChange={event => { setRegion(event.target.value); setPage(1); setLoading(true); }} className="form-control mt-1"><option value="">Mọi khu vực</option>{provinces.map(item => <option key={item.code} value={`v2:${item.code}`}>{item.name}</option>)}</select></label>
       {locationError && <p role="alert" className="text-sm text-red-700 sm:col-span-2 lg:col-span-5">{locationError}</p>}
-      <label className="text-sm font-medium">Giá từ (₫)<input type="number" min="0" step="1000" inputMode="numeric" value={minPrice} onChange={event => { setMinPrice(event.target.value); setPage(1); setLoading(true); }} placeholder="0" className="form-control mt-2" /></label>
-      <label className="text-sm font-medium">Giá đến (₫)<input type="number" min="0" step="1000" inputMode="numeric" value={maxPrice} onChange={event => { setMaxPrice(event.target.value); setPage(1); setLoading(true); }} placeholder="Không giới hạn" className="form-control mt-2" /></label>
-      <label className="text-sm font-medium">Đánh giá tối thiểu<select value={minRating} onChange={event => { setMinRating(event.target.value); setPage(1); setLoading(true); }} className="form-control mt-2"><option value="">Tất cả</option><option value="4">4★ trở lên</option><option value="4.5">4,5★ trở lên</option><option value="4.8">4,8★ trở lên</option></select></label>
-      <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2.5 text-sm font-semibold text-green-900 underline-offset-2 hover:underline">Xóa lọc</button>
+      <label className="text-sm font-medium">Giá từ (₫)<input type="number" min="0" step="1000" inputMode="numeric" value={minPrice} onChange={event => { setMinPrice(event.target.value); setPage(1); setLoading(true); }} placeholder="0" className="form-control mt-1" /></label>
+      <label className="text-sm font-medium">Giá đến (₫)<input type="number" min="0" step="1000" inputMode="numeric" value={maxPrice} onChange={event => { setMaxPrice(event.target.value); setPage(1); setLoading(true); }} placeholder="Không giới hạn" className="form-control mt-1" /></label>
+      <label className="text-sm font-medium">Đánh giá tối thiểu<select value={minRating} onChange={event => { setMinRating(event.target.value); setPage(1); setLoading(true); }} className="form-control mt-1"><option value="">Tất cả</option><option value="4">4★ trở lên</option><option value="4.5">4,5★ trở lên</option><option value="4.8">4,8★ trở lên</option></select></label>
+      <button type="button" onClick={resetFilters} className="rounded-lg px-2 py-2 text-sm font-semibold text-green-900 underline-offset-2 hover:underline">Xóa lọc</button>
       {priceInvalid && <p role="alert" className="text-sm text-red-700 sm:col-span-2 lg:col-span-5">Giá từ không được lớn hơn giá đến.</p>}
     </section>
 
