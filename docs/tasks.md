@@ -24,7 +24,7 @@
 - [x] Giỏ hàng localStorage: thêm vào giỏ, mua ngay, cập nhật số lượng và xóa sản phẩm.
 - [x] Tích hợp danh sách tỉnh/huyện/xã trước và tỉnh/xã sau sáp nhập vào bộ lọc catalog và màn nhập địa chỉ checkout thử nghiệm.
 - [ ] Admin CRUD catalog và quản lý media theo biến thể.
-- [ ] AI recommendation, structured output và tập tình huống đánh giá.
+- [x] AI recommendation bằng Gemini: hội thoại lưu PostgreSQL theo hồ sơ, structured output cho gói một/nhiều món, tổng giá xác thực theo ngân sách và kiểm thử mock.
 - [x] Giỏ hàng, orders, quote GHN staging, VNPAY sandbox, IPN idempotent và tạo vận đơn sau thanh toán.
 - [ ] Xác nhận đã tặng và loại trừ quà cũ.
 - [ ] Playwright cho luồng chính, triển khai demo và README portfolio.

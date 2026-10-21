@@ -5,5 +5,5 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CatalogController } from './catalog.controller';
 import { CatalogService } from './catalog.service';
 
-@Module({ imports: [MediaModule, LocationsModule], controllers: [CatalogController], providers: [CatalogService, PrismaService] })
+@Module({ imports: [MediaModule, LocationsModule], controllers: [CatalogController], providers: [CatalogService, PrismaService], exports: [CatalogService] })
 export class CatalogModule {}

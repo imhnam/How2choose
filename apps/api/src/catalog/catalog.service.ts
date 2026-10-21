@@ -4,6 +4,15 @@ import { StorageService } from '../media/storage.service';
 import { LocationsService } from '../locations/locations.service';
 
 export type CatalogQuery = { category?: string; search?: string; page?: string; limit?: string; region?: string; minPrice?: string; maxPrice?: string; minRating?: string };
+export type RecommendationCandidate = {
+  productId: string;
+  slug: string;
+  name: string;
+  description: string;
+  tags: string[];
+  categories: string[];
+  variants: Array<{ variantId: string; label: string; priceVnd: number; stock: number }>;
+};
 
 function optionalNumber(value: string | undefined, name: string, max?: number) {
   if (value === undefined || value === '') return undefined;
@@ -143,5 +152,43 @@ export class CatalogService {
     });
     if (!product) throw new NotFoundException('Không tìm thấy sản phẩm.');
     return this.serializeProduct(product);
+  }
+
+  async recommendationCandidates(maxBudgetVnd: number): Promise<RecommendationCandidate[]> {
+    const products = await this.prisma.product.findMany({
+      where: { active: true, variants: { some: { active: true, stock: { gt: 0 } } } },
+      orderBy: [{ purchaseCount: 'desc' }, { createdAt: 'desc' }],
+      take: 100,
+      include: {
+        categories: { include: { category: { select: { name: true } } } },
+        variants: {
+          where: { active: true, stock: { gt: 0 } },
+          orderBy: { priceVnd: 'asc' },
+          take: 8,
+          select: { id: true, sku: true, name: true, color: true, size: true, material: true, priceVnd: true, stock: true, discountPercent: true, discountAmountVnd: true },
+        },
+      },
+    });
+
+    return products.flatMap(product => {
+      const variants = product.variants
+        .map(variant => ({
+          variantId: variant.id,
+          label: [variant.name, variant.color, variant.size, variant.material].filter(Boolean).join(' · ') || variant.sku,
+          priceVnd: effectivePrice(variant.priceVnd, variant.discountPercent ?? product.discountPercent, variant.discountAmountVnd ?? product.discountAmountVnd),
+          stock: variant.stock,
+        }))
+        .filter(variant => variant.priceVnd <= maxBudgetVnd);
+      if (!variants.length) return [];
+      return [{
+        productId: product.id,
+        slug: product.slug,
+        name: product.name,
+        description: product.description.slice(0, 500),
+        tags: product.tags.slice(0, 10),
+        categories: product.categories.slice(0, 5).map(item => item.category.name),
+        variants,
+      }];
+    });
   }
 }

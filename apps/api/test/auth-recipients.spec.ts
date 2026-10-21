@@ -48,11 +48,30 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     expect(updatedProfile.body.user.birthday).toBe('1990-05-14');
     await first.patch('/api/auth/me').send({displayName:'Nam mới',birthday:'2026-02-31'}).expect(400);
     await request(server).get('/api/recipients').expect(401);
+    await request(server).post('/api/recommendations').send({
+      recipientId:'recipient-1',budgetVnd:500000,occasion:'birthday',
+    }).expect(401);
     await request(server).post('/api/media/recipients/unknown/avatar').expect(401);
     const item=await first.post('/api/recipients').send({displayName:'An',relationship:'Bạn',birthday:'2000-12-31',interests:['sách'],dislikes:[],notes:''}).expect(201);
     expect(item.body.address).toBeNull();
     expect(item.body.avatarUrl).toBeNull();
     expect(item.body.birthday).toBe('2000-12-31');
+    const conversation=await db.recommendationConversation.create({
+      data:{
+        ownerId:a.body.user.id,
+        recipientId:item.body.id,
+        occasion:'birthday',
+        budgetVnd:500000,
+        messages:{create:[
+          {role:'USER',content:'Tìm quà sinh nhật',createdAt:new Date('2026-10-21T10:00:00.000Z')},
+          {role:'ASSISTANT',content:'Mình có một gợi ý phù hợp.',createdAt:new Date('2026-10-21T10:00:00.001Z')},
+        ]},
+      },
+    });
+    const history=await first.get('/api/recommendations/conversation').query({recipientId:item.body.id}).expect(200);
+    expect(history.body.conversationId).toBe(conversation.id);
+    expect(history.body.messages.map((message:{role:string})=>message.role)).toEqual(['USER','ASSISTANT']);
+    await second.get('/api/recommendations/conversation').query({recipientId:item.body.id}).expect(404);
     await first.post('/api/recipients').send({
       displayName:'Địa chỉ sai',interests:[],dislikes:[],address:{version:'unsupported',provinceCode:1,wardCode:1,addressLine:'12 Nguyễn Trãi'},
     }).expect(400);

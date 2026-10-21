@@ -17,6 +17,10 @@ export type CartItem = {
   stock: number;
   imageUrl: string | null;
 };
+type CartProductInput = Pick<CatalogProduct, 'id' | 'slug' | 'name'>;
+type CartVariantInput = Pick<ProductVariant, 'id' | 'sku' | 'color' | 'size' | 'material' | 'priceVnd' | 'priceAfterDiscountVnd' | 'stock'> & {
+  media: Array<{ type: string; url: string }>;
+};
 
 function isBrowser() { return typeof window !== 'undefined'; }
 
@@ -38,7 +42,7 @@ function saveCart(items: CartItem[]) {
   notify();
 }
 
-export function addToCart(product: CatalogProduct, variant: ProductVariant, requestedQuantity = 1) {
+export function addToCart(product: CartProductInput, variant: CartVariantInput, requestedQuantity = 1) {
   const quantity = Math.max(1, Math.min(requestedQuantity, variant.stock));
   if (variant.stock <= 0) return false;
   const items = getCart();

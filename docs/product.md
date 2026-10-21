@@ -18,7 +18,7 @@ Giúp người dùng chọn và mua quà phù hợp cho bạn bè, người yêu
 ## Phạm vi MVP
 - Hồ sơ người nhận bằng form: tên, quan hệ, ngày sinh tùy chọn, sở thích, điều không thích, ghi chú, địa chỉ có cấu trúc tùy chọn và avatar. Cho phép trùng tên.
 - Catalog mẫu bằng dữ liệu seed, gồm danh mục nhiều cấp, sản phẩm thuộc nhiều danh mục và biến thể theo màu/kích thước/chất liệu. Mỗi biến thể có thể có media riêng.
-- AI gợi ý sản phẩm hợp lệ và giải thích lý do; hỏi thêm khi thiếu thông tin.
+- AI gợi ý tối đa 3 gói quà thay thế; mỗi gói gồm một hoặc nhiều món còn hàng, tổng giá theo số lượng không vượt ngân sách. Hội thoại được lưu theo tài khoản/người nhận; API kiểm tra quyền sở hữu và xác thực ID, giá, tồn kho từ catalog sau khi Gemini trả kết quả.
 - Lịch sử quà theo người nhận; mặc định tránh sản phẩm đã xác nhận tặng.
 - Tạo đơn, báo phí GHN staging và tích hợp VNPAY sandbox.
 
@@ -48,6 +48,7 @@ Tạo/cập nhật hồ sơ từ chat với xác nhận trước khi lưu; ghi n
 - Phí GHN staging được cộng vào tổng VNPAY sandbox; shop là bên trả cước cho GHN.
 - Chỉ giao dịch và vận chuyển thử nghiệm, không dùng VNPAY/GHN production.
 - Nhà cung cấp/model AI chưa chọn.
+- Gợi ý AI hiện dùng Gemini qua cấu hình server `GEMINI_API_KEY` và `GEMINI_MODEL`; cần cấu hình quota/rate limit dùng chung trước khi mở endpoint rộng rãi.
 - Cách xóa hồ sơ khi đã có lịch sử quà chưa chốt. Bản hiện tại chưa có thao tác xóa.
 
 ## Hoàn thành MVP khi

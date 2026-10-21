@@ -7,5 +7,6 @@ import { MediaModule } from './media/media.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { LocationsModule } from './locations/locations.module';
 import { OrdersModule } from './orders/orders.module';
-@Module({ imports:[AuthModule,RecipientsModule,MediaModule,CatalogModule,LocationsModule,OrdersModule],controllers: [HealthController], providers: [PrismaService] })
+import { RecommendationsModule } from './recommendations/recommendations.module';
+@Module({ imports:[AuthModule,RecipientsModule,MediaModule,CatalogModule,LocationsModule,OrdersModule,RecommendationsModule],controllers: [HealthController], providers: [PrismaService] })
 export class AppModule {}
