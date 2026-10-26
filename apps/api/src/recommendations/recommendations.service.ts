@@ -1,6 +1,8 @@
-import { BadGatewayException, BadRequestException, GatewayTimeoutException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, GatewayTimeoutException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { Prisma, RecommendationMessageRole } from '../generated/prisma/client';
 import { CatalogService, RecommendationCandidate } from '../catalog/catalog.service';
+import { StorageService } from '../media/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRecommendationDto, GiftOccasion } from './recommendation.dto';
 
@@ -10,6 +12,7 @@ type GeminiOutput = { message: string; bundles: GeminiBundle[]; followUpQuestion
 type Product = Awaited<ReturnType<CatalogService['getProduct']>>;
 type RecommendationItem = { product: Product; variantId: string; variantLabel: string; priceVnd: number; quantity: number; reason: string };
 type RecommendationBundle = { title: string; reason: string; totalPriceVnd: number; items: RecommendationItem[] };
+type BundleMedia = { id?: string; type: string; url?: string };
 type CompactProduct = {
   id: string;
   slug: string;
@@ -27,7 +30,7 @@ type CompactProduct = {
     priceVnd: number;
     priceAfterDiscountVnd: number;
     stock: number;
-    media: Array<{ type: string; url: string }>;
+    media: BundleMedia[];
   }>;
 };
 type CompactRecommendationItem = Omit<RecommendationItem, 'product'> & { product: CompactProduct };
@@ -38,6 +41,15 @@ type ConversationMessage = {
   content: string;
   bundles: CompactRecommendationBundle[];
   createdAt: Date;
+};
+type RecommendationResponse = {
+  conversationId: string;
+  occasion: string;
+  budgetVnd: number;
+  message: string;
+  followUpQuestion: string | null;
+  bundles: CompactRecommendationBundle[];
+  messages: ConversationMessage[];
 };
 
 const occasionLabels: Record<GiftOccasion, string> = {
@@ -53,7 +65,9 @@ const conversationPageSize = 20;
 
 @Injectable()
 export class RecommendationsService {
-  constructor(private readonly prisma: PrismaService, private readonly catalog: CatalogService) {}
+  private readonly logger = new Logger(RecommendationsService.name);
+
+  constructor(private readonly prisma: PrismaService, private readonly catalog: CatalogService, private readonly storage: StorageService) {}
 
   async getConversation(ownerId: string, recipientId: string, before?: string) {
     if (!recipientId) throw new NotFoundException('Vui lòng chọn hồ sơ người nhận.');
@@ -90,7 +104,7 @@ export class RecommendationsService {
       conversationId: conversation.id,
       occasion: conversation.occasion,
       budgetVnd: conversation.budgetVnd,
-      messages: conversation.messages.slice(0, conversationPageSize).reverse().map(message => this.serializeMessage(message)),
+      messages: await Promise.all(conversation.messages.slice(0, conversationPageSize).reverse().map(message => this.serializeMessage(message))),
       hasMoreMessages,
     };
   }
@@ -101,7 +115,56 @@ export class RecommendationsService {
     return summary ? `\n[Gói đã gợi ý trước: ${summary}]` : '';
   }
 
-  async recommend(ownerId: string, input: CreateRecommendationDto) {
+  async recommend(ownerId: string, input: CreateRecommendationDto): Promise<RecommendationResponse> {
+    const key = input.idempotencyKey?.trim();
+    const requestHash = key ? this.hashRequest(input) : '';
+
+    if (key) {
+      const existing = await this.prisma.recommendationRequest.findUnique({ where: { ownerId_key: { ownerId, key } } });
+      if (existing) return this.readIdempotentResponse(existing, requestHash);
+    }
+
+    const response = await this.buildRecommendation(ownerId, input);
+
+    if (key) {
+      try {
+        await this.prisma.recommendationRequest.create({
+          data: {
+            ownerId,
+            key,
+            requestHash,
+            conversationId: response.conversationId,
+            response: JSON.parse(JSON.stringify(response)) as Prisma.InputJsonValue,
+          },
+        });
+      } catch (error) {
+        if ((error as { code?: string }).code === 'P2002') {
+          const existing = await this.prisma.recommendationRequest.findUnique({ where: { ownerId_key: { ownerId, key } } });
+          if (existing) return this.readIdempotentResponse(existing, requestHash);
+        }
+        throw error;
+      }
+    }
+
+    return response;
+  }
+
+  private hashRequest(input: CreateRecommendationDto) {
+    return createHash('sha256').update(JSON.stringify({
+      recipientId: input.recipientId,
+      conversationId: input.conversationId ?? null,
+      budgetVnd: input.budgetVnd,
+      occasion: input.occasion,
+      request: input.request?.trim() ?? '',
+    })).digest('hex');
+  }
+
+  private readIdempotentResponse(existing: { requestHash: string; response: Prisma.JsonValue }, requestHash: string): RecommendationResponse {
+    if (existing.requestHash !== requestHash) throw new ConflictException('Idempotency-Key đã được dùng cho một yêu cầu khác.');
+    return existing.response as unknown as RecommendationResponse;
+  }
+
+  private async buildRecommendation(ownerId: string, input: CreateRecommendationDto): Promise<RecommendationResponse> {
     const recipient = await this.prisma.recipient.findFirst({
       where: { id: input.recipientId, ownerId },
       select: { displayName: true, relationship: true, birthday: true, interests: true, dislikes: true, notes: true },
@@ -189,7 +252,7 @@ export class RecommendationsService {
       message: assistantMessage,
       followUpQuestion,
       bundles: persistedBundles,
-      messages: saved.messages.slice().reverse().map(message => this.serializeMessage(message)),
+      messages: await Promise.all(saved.messages.slice().reverse().map(message => this.serializeMessage(message))),
     };
   }
 
@@ -227,7 +290,7 @@ export class RecommendationsService {
               priceVnd: variant.priceVnd,
               priceAfterDiscountVnd: variant.priceAfterDiscountVnd,
               stock: variant.stock,
-              media: variant.media.slice(0, 1).map(media => ({ type: media.type, url: media.url })),
+              media: variant.media.slice(0, 1).map(media => media.id ? { id: media.id, type: media.type } : { type: media.type, url: media.url }),
             }] : [],
           },
         };
@@ -242,12 +305,12 @@ export class RecommendationsService {
     }
 
     const result: RecommendationBundle[] = [];
+    const productCache = new Map<string, Product>();
     for (const bundle of output.slice(0, 3)) {
       if (!bundle.title.trim() || !bundle.items.length || bundle.items.length > 5) continue;
       const items: RecommendationItem[] = [];
       let totalPriceVnd = 0;
       let valid = true;
-      const productCache = new Map<string, Product>();
       const seenVariants = new Set<string>();
       for (const item of bundle.items) {
         const match = candidateByVariant.get(item.variantId);
@@ -263,7 +326,15 @@ export class RecommendationsService {
         }
         let product = productCache.get(match.candidate.productId);
         if (!product) {
-          product = await this.catalog.getProduct(match.candidate.slug);
+          try {
+            product = await this.catalog.getProduct(match.candidate.slug);
+          } catch (error) {
+            if (error instanceof NotFoundException) {
+              valid = false;
+              break;
+            }
+            throw error;
+          }
           productCache.set(match.candidate.productId, product);
         }
         const variant = product.variants.find(entry => entry.id === item.variantId);
@@ -293,19 +364,57 @@ export class RecommendationsService {
     return result;
   }
 
-  private serializeMessage(message: { id: string; role: RecommendationMessageRole; content: string; bundles: unknown; createdAt: Date }): ConversationMessage {
+  private async serializeMessage(message: { id: string; role: RecommendationMessageRole; content: string; bundles: unknown; createdAt: Date }): Promise<ConversationMessage> {
     return {
       id: message.id,
       role: message.role,
       content: message.content,
-      bundles: this.readCompactBundles(message.bundles),
+      bundles: await this.readCompactBundles(message.bundles),
       createdAt: message.createdAt,
     };
   }
 
-  private readCompactBundles(value: unknown): CompactRecommendationBundle[] {
+  private async readCompactBundles(value: unknown): Promise<CompactRecommendationBundle[]> {
     if (!this.isRecommendationBundles(value)) return [];
-    return this.compactBundles(value);
+    return this.signBundleMedia(this.compactBundles(value));
+  }
+
+  private async signBundleMedia(bundles: CompactRecommendationBundle[]): Promise<CompactRecommendationBundle[]> {
+    const mediaIds = new Set<string>();
+    for (const bundle of bundles) {
+      for (const item of bundle.items) {
+        for (const media of item.product.variants[0]?.media ?? []) {
+          if (media.id) mediaIds.add(media.id);
+        }
+      }
+    }
+    if (!mediaIds.size) return bundles;
+
+    const rows = await this.prisma.productMedia.findMany({
+      where: { id: { in: [...mediaIds] } },
+      select: { id: true, objectKey: true },
+    });
+    const urls = new Map<string, string>();
+    await Promise.all(rows.map(async row => {
+      urls.set(row.id, await this.storage.signedUrl(row.objectKey));
+    }));
+
+    return bundles.map(bundle => ({
+      ...bundle,
+      items: bundle.items.map(item => ({
+        ...item,
+        product: {
+          ...item.product,
+          variants: item.product.variants.map(variant => ({
+            ...variant,
+            media: (variant.media ?? []).map(media => ({
+              type: media.type,
+              url: media.id ? urls.get(media.id) ?? '' : media.url ?? '',
+            })),
+          })),
+        },
+      })),
+    }));
   }
 
   private isRecommendationBundles(value: unknown): value is RecommendationBundle[] {
@@ -359,6 +468,7 @@ export class RecommendationsService {
                 message: { type: 'STRING' },
                 bundles: {
                   type: 'ARRAY',
+                  maxItems: 3,
                   items: {
                     type: 'OBJECT',
                     properties: {
@@ -366,6 +476,8 @@ export class RecommendationsService {
                       reason: { type: 'STRING' },
                       items: {
                         type: 'ARRAY',
+                        minItems: 1,
+                        maxItems: 5,
                         items: {
                           type: 'OBJECT',
                           properties: {
@@ -395,20 +507,38 @@ export class RecommendationsService {
 
     if (!response.ok) {
       const providerMessage = await this.providerErrorMessage(response, apiKey);
+      if (providerMessage) this.logger.warn(`Gemini HTTP ${response.status}: ${providerMessage}`);
+      const detail = process.env.NODE_ENV !== 'production' && providerMessage ? ` Chi tiết từ Google: ${providerMessage}` : '';
       if (response.status === 429 || response.status === 503) throw new ServiceUnavailableException('Dịch vụ AI đang bận hoặc đã hết hạn mức. Vui lòng thử lại sau.');
       if (response.status === 401 || response.status === 403) throw new ServiceUnavailableException('Gemini từ chối API key. Kiểm tra key còn hiệu lực và quyền dùng Gemini API.');
-      if (response.status === 404) throw new ServiceUnavailableException(`Google Gemini không cung cấp model “${model}” cho endpoint generateContent với project/API key hiện tại. Kiểm tra quyền Gemini API của project hoặc danh sách model khả dụng.${providerMessage ? ` Chi tiết từ Google: ${providerMessage}` : ''}`);
-      if (response.status === 400) throw new BadGatewayException(`Gemini từ chối định dạng yêu cầu (HTTP 400).${providerMessage ? ` Chi tiết từ Google: ${providerMessage}` : ' Kiểm tra model và cấu hình JSON schema.'}`);
-      throw new BadGatewayException(`Gemini tạm thời không thể xử lý yêu cầu (HTTP ${response.status}).${providerMessage ? ` Chi tiết từ Google: ${providerMessage}` : ''}`);
+      if (response.status === 404) throw new ServiceUnavailableException(`Google Gemini không cung cấp model “${model}” cho endpoint generateContent với project/API key hiện tại. Kiểm tra quyền Gemini API của project hoặc danh sách model khả dụng.${detail}`);
+      if (response.status === 400) throw new BadGatewayException(`Gemini từ chối định dạng yêu cầu (HTTP 400).${detail || ' Kiểm tra model và cấu hình JSON schema.'}`);
+      throw new BadGatewayException(`Gemini tạm thời không thể xử lý yêu cầu (HTTP ${response.status}).${detail}`);
     }
 
-    let body: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    let body: {
+      promptFeedback?: { blockReason?: string };
+      candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ text?: string }> } }>;
+    };
     try {
       body = await response.json() as typeof body;
     } catch {
       throw new BadGatewayException('Dịch vụ AI trả về phản hồi không hợp lệ.');
     }
-    const text = body.candidates?.[0]?.content?.parts?.map(part => part.text ?? '').join('').trim();
+    if (body.promptFeedback?.blockReason) {
+      this.logger.warn(`Gemini blocked the prompt: ${body.promptFeedback.blockReason}`);
+      throw new BadRequestException('Nội dung hồ sơ hoặc tin nhắn bị bộ lọc an toàn của AI từ chối. Hãy điều chỉnh và thử lại.');
+    }
+    const candidate = body.candidates?.[0];
+    if (candidate?.finishReason === 'MAX_TOKENS') {
+      this.logger.warn('Gemini stopped because the output reached maxOutputTokens.');
+      throw new BadGatewayException('AI trả lời quá dài và bị cắt trước khi hoàn tất. Vui lòng thử lại với yêu cầu ngắn hơn.');
+    }
+    if (candidate?.finishReason && ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'].includes(candidate.finishReason)) {
+      this.logger.warn(`Gemini stopped with reason ${candidate.finishReason}.`);
+      throw new BadRequestException('AI không thể tạo gợi ý cho nội dung này. Hãy điều chỉnh hồ sơ hoặc yêu cầu.');
+    }
+    const text = candidate?.content?.parts?.map(part => part.text ?? '').join('').trim();
     if (!text) throw new BadGatewayException('Dịch vụ AI không trả về nội dung gợi ý.');
 
     let output: unknown;
@@ -426,7 +556,7 @@ export class RecommendationsService {
     const output = value as Record<string, unknown>;
     return typeof output.message === 'string'
       && Array.isArray(output.bundles)
-      && output.bundles.length <= 5
+      && output.bundles.length <= 3
       && output.bundles.every(bundle => bundle && typeof bundle === 'object'
         && typeof (bundle as Record<string, unknown>).title === 'string'
         && typeof (bundle as Record<string, unknown>).reason === 'string'

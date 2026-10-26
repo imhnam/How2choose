@@ -6,13 +6,14 @@ The signed-in user selects one of their recipient profiles, a gift occasion, a m
 
 ## Data flow
 
-1. `POST /api/recommendations` validates the recipient ID, optional owned conversation ID, occasion, budget (50,000–20,000,000 VND), and optional request (up to 500 characters).
+1. `POST /api/recommendations` validates the recipient ID, optional owned conversation ID, occasion, budget (50,000–20,000,000 VND), optional request (up to 500 characters), and optional idempotency key (up to 100 characters). Repeating a key with the same payload returns the stored response without calling Gemini; reusing it with a different payload returns 409.
 2. The API loads the recipient using both its ID and the authenticated owner ID. It does not send the recipient's display name, phone, address, or avatar to Gemini. Relationship, optional birthday, interests, dislikes, and up to 500 characters of notes are sent as personalization context.
 3. The API queries active catalog products and variants with stock, applies effective catalog prices, and includes only variants at or below the requested total budget. A maximum of 100 products and eight affordable variants per product are considered; descriptions, tags, notes, and user requests are bounded before sending.
 4. Gemini receives recent conversation turns and eligible candidates, and returns structured JSON containing a short message, up to three alternative bundles, and an optional follow-up question. Each bundle may contain one or more products; the sum of item price × quantity in each bundle must fit the budget. Alternative bundles are not added together.
-5. The API rejects malformed output, verifies every product/variant pair, quantity, stock, and complete bundle total against the live catalog, and discards invalid bundles.
-6. Successful user and assistant messages plus compact, validated bundle snapshots are saved in PostgreSQL. `GET /api/recommendations/conversation?recipientId=...` loads the owner-scoped recipient and latest conversation together, returning the 20 newest messages when a conversation exists or an empty history without a follow-up query. Older messages are fetched in pages when requested. Messages are rendered on the correct side of the chat.
-7. The web app supports adding a complete suggested bundle to the local cart and allows the user to continue the conversation or change criteria.
+5. The API rejects malformed output, verifies every product/variant pair, quantity, stock, and complete bundle total against the live catalog, and discards invalid bundles. A product deactivated between candidate selection and validation drops that bundle instead of failing the request.
+6. Successful user and assistant messages plus compact, validated bundle snapshots are saved in PostgreSQL. Snapshots store media IDs instead of expiring URLs; history responses re-sign media URLs. `GET /api/recommendations/conversation?recipientId=...` loads the owner-scoped recipient and latest conversation together, returning the 20 newest messages when a conversation exists or an empty history without a follow-up query. Older messages are fetched in pages when requested. Messages are rendered on the correct side of the chat.
+7. The web app supports adding a complete suggested bundle to the local cart and allows the user to continue the conversation or change criteria. The budget control uses the same 50,000–20,000,000 VND range as the API.
+8. `POST /api/recommendations` is limited to 5 requests per minute per account; other recommendation routes allow 60 requests per minute. The limit is enforced after session authentication so it applies per user rather than per IP.
 
 ## Safety and failures
 
@@ -21,8 +22,10 @@ The signed-in user selects one of their recipient profiles, a gift occasion, a m
 - Profile and catalog text are untrusted data, not instructions. The prompt explicitly treats them as such; API authorization and catalog validation remain authoritative.
 - Never trust model-generated IDs, prices, stock, links, or purchase instructions. Unknown product/variant IDs are discarded.
 - Missing credentials, provider errors, timeouts, malformed JSON, and invalid response shapes return explicit API errors. No model-like fallback is presented as a successful recommendation.
+- Truncated output (`MAX_TOKENS`) and content blocked by provider safety filters return distinct errors instead of a generic parse failure.
+- Provider error details are logged server-side with the API key redacted. Client responses include the provider message only outside production.
 - If no in-stock variant fits the budget, return an explicit empty bundle list without calling Gemini and persist the user/assistant messages.
-- Provider quota and deployment-level rate limiting should be configured before exposing the endpoint broadly.
+- The endpoint applies a per-account rate limit. Provider quota, billing alerts, and deployment-level limits must still be configured before exposing the endpoint broadly.
 
 ## Acceptance checks
 
@@ -33,6 +36,10 @@ The signed-in user selects one of their recipient profiles, a gift occasion, a m
 - Every returned bundle's sum of authoritative item prices × quantities is within budget; a bundle may have one or multiple items.
 - Gemini output is schema-checked and every product, variant, quantity, stock value, and bundle total is revalidated against the live catalog.
 - Chat history persists across reloads and correctly displays user and assistant roles.
+- Stored history returns freshly signed media URLs after the original presigned URL expires.
+- Repeating an idempotency key with the same payload returns the original response without a second provider call; a different payload returns 409.
+- A sixth recommendation request within one minute for the same account returns 429.
+- A product deactivated between candidate selection and validation removes that bundle without failing the whole request.
 - Initial history loading is bounded to 20 messages; older history remains available through paging.
 - Provider/configuration errors and empty-catalog outcomes are distinct and visible to the user.
 - Unit/API tests use a mocked Gemini response; live Gemini checks are separate and require configured credentials and quota.

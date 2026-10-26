@@ -1,5 +1,7 @@
-import { BadGatewayException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { CatalogService, RecommendationCandidate } from '../src/catalog/catalog.service';
+import { StorageService } from '../src/media/storage.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RecommendationsService } from '../src/recommendations/recommendations.service';
 
@@ -83,6 +85,9 @@ describe('RecommendationsService', () => {
   const conversationFindFirst = jest.fn();
   const conversationCreate = jest.fn();
   const conversationUpdate = jest.fn();
+  const requestFindUnique = jest.fn();
+  const requestCreate = jest.fn();
+  const productMediaFindMany = jest.fn();
   const recommendationCandidates = jest.fn();
   const getProduct = jest.fn();
   const prisma = {
@@ -92,9 +97,16 @@ describe('RecommendationsService', () => {
       create: conversationCreate,
       update: conversationUpdate,
     },
+    recommendationRequest: {
+      findUnique: requestFindUnique,
+      create: requestCreate,
+    },
+    productMedia: { findMany: productMediaFindMany },
   } as unknown as PrismaService;
   const catalog = { recommendationCandidates, getProduct } as unknown as CatalogService;
-  const service = new RecommendationsService(prisma, catalog);
+  const signedUrl = jest.fn().mockResolvedValue('https://media.example/signed');
+  const storage = { signedUrl } as unknown as StorageService;
+  const service = new RecommendationsService(prisma, catalog, storage);
   let fetchMock: jest.SpyInstance;
 
   beforeEach(() => {
@@ -112,6 +124,9 @@ describe('RecommendationsService', () => {
       select?.recommendationConversations ? { id: 'recipient-1', recommendationConversations: [] } : recipientProfile,
     ));
     conversationFindFirst.mockResolvedValue(null);
+    requestFindUnique.mockResolvedValue(null);
+    requestCreate.mockResolvedValue({});
+    productMediaFindMany.mockResolvedValue([]);
     const savedConversation = (data: { occasion: string; budgetVnd: number; messages: { create: Array<{ role: string; content: string; bundles?: unknown }> } }, id = 'conversation-1') => ({
       id,
       occasion: data.occasion,
@@ -388,5 +403,167 @@ describe('RecommendationsService', () => {
       budgetVnd: 300000,
       occasion: 'birthday',
     })).rejects.toThrow('Request failed for [redacted].');
+  });
+
+  it('returns the stored response for a repeated Idempotency-Key without calling Gemini', async () => {
+    const requestHash = createHash('sha256').update(JSON.stringify({
+      recipientId: 'recipient-1',
+      conversationId: null,
+      budgetVnd: 300000,
+      occasion: 'birthday',
+      request: '',
+    })).digest('hex');
+    const stored = {
+      conversationId: 'conversation-1',
+      occasion: 'birthday',
+      budgetVnd: 300000,
+      message: 'Kết quả đã lưu.',
+      followUpQuestion: null,
+      bundles: [],
+      messages: [],
+    };
+    requestFindUnique.mockResolvedValue({ requestHash, response: stored });
+
+    const result = await service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+      idempotencyKey: 'key-1',
+    });
+
+    expect(result).toMatchObject({ conversationId: 'conversation-1', message: 'Kết quả đã lưu.' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an Idempotency-Key reused with a different payload', async () => {
+    requestFindUnique.mockResolvedValue({ requestHash: 'different-hash', response: {} });
+
+    await expect(service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+      idempotencyKey: 'key-1',
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('stores the response for a new Idempotency-Key', async () => {
+    recommendationCandidates.mockResolvedValue([]);
+
+    const result = await service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+      idempotencyKey: 'key-2',
+    });
+
+    expect(result.bundles).toEqual([]);
+    expect(requestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ ownerId: 'owner-1', key: 'key-2', conversationId: 'conversation-1' }),
+    });
+  });
+
+  it('re-signs stored bundle media when loading history', async () => {
+    const storedBundles = [{
+      title: 'Gói đọc sách',
+      reason: 'Phù hợp sở thích.',
+      totalPriceVnd: 189000,
+      items: [{
+        variantId: 'variant-1',
+        variantLabel: 'Xanh · A5',
+        priceVnd: 189000,
+        quantity: 1,
+        reason: 'Dùng mỗi ngày.',
+        product: {
+          id: candidate.productId,
+          slug: candidate.slug,
+          name: candidate.name,
+          description: candidate.description,
+          ratingAverage: 4.8,
+          ratingCount: 12,
+          categories: [{ name: 'Văn phòng phẩm' }],
+          variants: [{
+            id: 'variant-1',
+            sku: 'NOTEBOOK-1',
+            color: 'Xanh',
+            size: 'A5',
+            material: 'Vải',
+            priceVnd: 189000,
+            priceAfterDiscountVnd: 189000,
+            stock: 3,
+            media: [{ id: 'media-1', type: 'IMAGE' }],
+          }],
+        },
+      }],
+    }];
+    recipientFindFirst.mockResolvedValue({
+      id: 'recipient-1',
+      recommendationConversations: [{
+        id: 'conversation-1',
+        occasion: 'birthday',
+        budgetVnd: 300000,
+        messages: [{ id: 'message-1', role: 'ASSISTANT', content: 'Gợi ý cho bạn.', bundles: storedBundles, createdAt: new Date() }],
+      }],
+    });
+    productMediaFindMany.mockResolvedValue([{ id: 'media-1', objectKey: 'products/1.jpg' }]);
+
+    const result = await service.getConversation('owner-1', 'recipient-1');
+
+    expect(signedUrl).toHaveBeenCalledWith('products/1.jpg');
+    expect(result.messages[0].bundles[0].items[0].product.variants[0].media[0].url).toBe('https://media.example/signed');
+  });
+
+  it('returns a clear error when Gemini output is truncated', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] }),
+    } as Response);
+
+    await expect(service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+    })).rejects.toThrow('AI trả lời quá dài');
+  });
+
+  it('returns a clear error when Gemini blocks the prompt', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ promptFeedback: { blockReason: 'SAFETY' } }),
+    } as Response);
+
+    await expect(service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+    })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('drops a bundle when its product is deactivated before validation', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: JSON.stringify({
+          message: 'Một món quà phù hợp.',
+          followUpQuestion: '',
+          bundles: [{ title: 'Gói đọc sách', reason: 'Phù hợp sở thích.', items: [
+            { productId: candidate.productId, variantId: 'variant-1', quantity: 1, reason: 'Dùng mỗi ngày.' },
+          ] }],
+        }) }] } }],
+      }),
+    } as Response);
+    getProduct.mockRejectedValueOnce(new NotFoundException('Không tìm thấy sản phẩm.'));
+
+    const result = await service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+    });
+
+    expect(result.bundles).toEqual([]);
+    expect(result.message).toContain('chưa tìm được gói quà hợp lệ');
   });
 });

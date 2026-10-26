@@ -69,6 +69,7 @@ model User {
   recipients Recipient[]
   orders Order[]
   recommendationConversations RecommendationConversation[]
+  recommendationRequests RecommendationRequest[]
 }
 
 model Session {
@@ -131,6 +132,19 @@ model RecommendationMessage {
   bundles Json @default("[]")
   createdAt DateTime @default(now())
   @@index([conversationId, createdAt])
+}
+
+model RecommendationRequest {
+  id String @id @default(cuid())
+  ownerId String
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  key String
+  requestHash String
+  conversationId String
+  response Json
+  createdAt DateTime @default(now())
+  @@unique([ownerId, key])
+  @@index([createdAt])
 }
 
 model Product {

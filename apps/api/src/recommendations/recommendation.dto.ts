@@ -9,4 +9,5 @@ export class CreateRecommendationDto {
   @IsInt() @Min(50000) @Max(20000000) budgetVnd!: number;
   @IsIn(GIFT_OCCASIONS) occasion!: GiftOccasion;
   @IsOptional() @IsString() @MaxLength(500) request?: string;
+  @IsOptional() @IsString() @MaxLength(100) idempotencyKey?: string;
 }

@@ -72,6 +72,7 @@ docs                      Product, architecture, tasks, project-context
   notes, avatar, địa chỉ có cấu trúc. Tên trùng được phép.
 - `RecommendationConversation` / `RecommendationMessage`: owner/recipient, occasion, budgetVnd;
   message role `USER|ASSISTANT`, bundles JSON.
+- `RecommendationRequest`: unique owner + idempotency key, request hash, response JSON.
 - `Category` tự tham chiếu; `ProductCategory` nhiều-nhiều.
 - `Product`: slug unique, giá, tồn, tags, brand/supplier, shippingRegions, purchaseCount,
   ratingAverage/Count, giảm giá % và số tiền, active.
@@ -115,15 +116,22 @@ docs                      Product, architecture, tasks, project-context
   tổng VNPAY.
 
 ### AI recommendation
-- Ngân sách 50.000–20.000.000 VND; occasion thuộc danh sách cố định; request ≤500 ký tự.
+- Ngân sách 50.000–20.000.000 VND; occasion thuộc danh sách cố định; request ≤500 ký tự;
+  `idempotencyKey` tùy chọn ≤100 ký tự. Web dùng cùng khoảng ngân sách với API.
 - Chỉ gửi relationship, birthday, interests, dislikes, notes (≤500) cho Gemini;
   không gửi tên/SĐT/địa chỉ/avatar.
 - Tối đa 100 sản phẩm, 8 biến thể/sản phẩm, 3 gói, 5 món/gói; tổng từng gói ≤ ngân sách.
 - Gemini trả JSON theo `responseSchema`; API kiểm tra cấu trúc và xác thực lại
-  productId/variantId/quantity/stock/giá với catalog; gói sai bị loại.
+  productId/variantId/quantity/stock/giá với catalog; gói sai hoặc sản phẩm vừa bị tắt bị loại.
+- Output bị cắt (`MAX_TOKENS`) hoặc bị safety filter chặn trả lỗi riêng, không phải lỗi parse chung.
+- Gọi lặp cùng `idempotencyKey` trả lại response đã lưu, không gọi Gemini lần hai; payload khác
+  với cùng key trả 409. Bảng `RecommendationRequest` giữ response theo owner/key.
+- Rate limit: 5 POST/phút/tài khoản; 60 request/phút cho các route còn lại của controller.
 - Hội thoại lưu PostgreSQL theo owner/recipient; tải 20 tin mới nhất, phân trang tin cũ.
+  Snapshot gói lưu media ID và được ký lại URL khi đọc lịch sử.
 - Không có biến thể phù hợp → trả danh sách gói rỗng, không gọi Gemini.
 - `GEMINI_API_KEY` và `GEMINI_MODEL` chỉ ở server; `_` trong tên model được đổi thành `-`.
+- Chi tiết lỗi provider được log server-side; response chỉ kèm chi tiết ngoài production.
 
 ### Media
 - Avatar: JPEG/PNG/WebP ≤5 MB; product: ảnh ≤10 MB, MP4/WebM ≤100 MB.

@@ -91,6 +91,20 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     await first.post('/api/auth/logout').expect(201);
     await first.get('/api/auth/me').expect(401);
   });
+  it('rate limits recommendation requests per account', async () => {
+    const server=app.getHttpServer();
+    const agent=request.agent(server);
+    const suffix=randomUUID().slice(0,10);
+    const user=await agent.post('/api/auth/register').send({displayName:'Rate limit',identifier:'rate-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
+    userIds.push(user.body.user.id);
+    const payload={recipientId:'missing-recipient',budgetVnd:300000,occasion:'birthday'};
+    for(let attempt=0;attempt<5;attempt++) await agent.post('/api/recommendations').send(payload).expect(404);
+    await agent.post('/api/recommendations').send(payload).expect(429);
+    const other=request.agent(server);
+    const otherUser=await other.post('/api/auth/register').send({displayName:'Rate limit 2',identifier:'rate-2-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
+    userIds.push(otherUser.body.user.id);
+    await other.post('/api/recommendations').send(payload).expect(404);
+  });
   it('rejects bad credentials, cross-origin writes, and invalid Google state', async () => {
     const server=app.getHttpServer();
     await request(server).post('/api/auth/register').send({identifier:'missing-name@example.test',password:'StrongPass123'}).expect(400);

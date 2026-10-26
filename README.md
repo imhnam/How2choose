@@ -138,7 +138,7 @@ vào nhà cung cấp bên ngoài.
 **Tiếp theo**
 
 - Xác nhận "đã tặng" và lịch sử quà để tránh gợi ý trùng.
-- Xác minh email/SMS, quên mật khẩu và rate limiting trước khi mở đăng ký công khai.
+- Xác minh email/SMS, quên mật khẩu và rate limiting cho đăng nhập/đăng ký trước khi mở đăng ký công khai.
 - Trang admin CRUD catalog và quản lý media theo biến thể.
 - Playwright cho luồng chính, demo deploy và GHN/VNPAY production.
 
@@ -150,6 +150,7 @@ vào nhà cung cấp bên ngoài.
 - Cân nặng/kích thước đóng gói trong dữ liệu seed là ước lượng.
 - Chưa có xóa hồ sơ người nhận vì chính sách lịch sử quà chưa được chốt.
 - Một số cảnh báo `npm audit` ở dependency API cần tiếp tục theo dõi.
+- Rate limit của API lưu trong bộ nhớ tiến trình; khi chạy nhiều instance cần cấu hình storage dùng chung (ví dụ Redis).
 
 ## Tài liệu
 

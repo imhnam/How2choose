@@ -9,6 +9,10 @@ import { ProductArtwork } from '@/components/product-artwork';
 import { addToCart } from '@/lib/cart';
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
+const minBudget = 50000;
+const maxBudget = 20000000;
+const budgetStep = 50000;
+const newIdempotencyKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const occasions = [
   { value: 'birthday', label: 'Sinh nhật' },
   { value: 'anniversary', label: 'Kỷ niệm' },
@@ -123,7 +127,7 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
         setHasMoreMessages(result.hasMoreMessages);
         const storedOccasion = occasions.find(item => item.value === result.occasion);
         if (storedOccasion) setOccasion(storedOccasion.value);
-        if (result.budgetVnd !== null && result.budgetVnd >= 50000 && result.budgetVnd <= 2000000) setBudget(result.budgetVnd);
+        if (result.budgetVnd !== null && result.budgetVnd >= minBudget && result.budgetVnd <= maxBudget) setBudget(result.budgetVnd);
       })
       .catch(reason => {
         if (active) {
@@ -179,6 +183,7 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
           budgetVnd: budget,
           occasion,
           ...(requestText.trim() ? { request: requestText.trim() } : {}),
+          idempotencyKey: newIdempotencyKey(),
         }),
       });
       setConversationId(result.conversationId);
@@ -189,7 +194,7 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
       });
       const storedOccasion = occasions.find(item => item.value === result.occasion);
       if (storedOccasion) setOccasion(storedOccasion.value);
-      setBudget(Math.min(2000000, Math.max(50000, result.budgetVnd)));
+      setBudget(Math.min(maxBudget, Math.max(minBudget, result.budgetVnd)));
     } catch (reason) {
       setMessages(current => current.filter(message => message.id !== optimisticMessageId));
       if (typedMessage) setRequestText(current => current || typedMessage);
@@ -223,7 +228,7 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
     <div className="mt-6 grid items-start gap-5 lg:grid-cols-[285px_minmax(0,1fr)]">
       <aside className="space-y-4">
         <section className="surface p-4"><h2 className="font-extrabold">Dịp tặng quà</h2><div className="mt-3 flex flex-wrap gap-2">{occasions.map(item=><button key={item.value} type="button" aria-pressed={occasion===item.value} onClick={()=>setOccasion(item.value)} className={`rounded-full border px-3 py-2 text-xs ${occasion===item.value?'border-[#193f32] bg-[#193f32] font-bold text-white':'border-[#dfe5d9] bg-white'}`}>{item.label}</button>)}</div></section>
-        <section className="surface p-4"><div className="flex items-center justify-between"><h2 className="font-extrabold">Ngân sách tối đa</h2><span className="text-sm font-bold">{money(budget)}</span></div><input aria-label="Ngân sách tối đa" type="range" min="50000" max="2000000" step="50000" value={budget} onChange={event=>setBudget(Number(event.target.value))} className="mt-4 w-full accent-[#193f32]" /><div className="flex justify-between text-xs text-[#64756b]"><span>50.000₫</span><span>2.000.000₫</span></div></section>
+        <section className="surface p-4"><div className="flex items-center justify-between"><h2 className="font-extrabold">Ngân sách tối đa</h2><span className="text-sm font-bold">{money(budget)}</span></div><input aria-label="Ngân sách tối đa" type="range" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>setBudget(Number(event.target.value))} className="mt-4 w-full accent-[#193f32]" /><div className="flex justify-between text-xs text-[#64756b]"><span>{money(minBudget)}</span><span>{money(maxBudget)}</span></div></section>
         <section className="surface p-4"><h2 className="font-extrabold">Sở thích</h2><div className="mt-3 flex flex-wrap gap-2">{(recipient?.interests.length ? recipient.interests : ['Thêm sở thích trong hồ sơ']).map(item=><span key={item} className="pill">{item}</span>)}</div><h3 className="mt-5 text-sm font-bold">Không thích</h3><div className="mt-3 flex flex-wrap gap-2">{(recipient?.dislikes.length ? recipient.dislikes : ['Chưa có dữ liệu']).map(item=><span key={item} className="rounded-full border border-dashed border-[#b9c7b9] px-3 py-1.5 text-xs">{item}</span>)}</div><Link href={recipient?`/recipients/${encodeURIComponent(recipient.id)}`:'/recipients'} className="mt-4 inline-block text-xs font-semibold underline">Chỉnh sửa hồ sơ</Link></section>
         {recipient?.notes && <section className="rounded-2xl border border-[#dfe5d9] bg-[#edf1e8] p-4"><h2 className="font-extrabold">Ghi chú</h2><p className="mt-2 text-sm leading-6 text-[#64756b]">{recipient.notes}</p></section>}
         <button type="button" disabled={!recipient || requesting || conversationLoading} onClick={() => { void requestRecommendations(); }} className="btn-accent w-full disabled:cursor-not-allowed disabled:opacity-50">{requesting ? 'Đang tìm quà phù hợp...' : messages.length ? 'Tìm gợi ý mới' : 'Tìm quà phù hợp'}</button>
