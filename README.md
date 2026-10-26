@@ -151,6 +151,7 @@ vào nhà cung cấp bên ngoài.
 - Chưa có xóa hồ sơ người nhận vì chính sách lịch sử quà chưa được chốt.
 - Một số cảnh báo `npm audit` ở dependency API cần tiếp tục theo dõi.
 - Rate limit của API lưu trong bộ nhớ tiến trình; khi chạy nhiều instance cần cấu hình storage dùng chung (ví dụ Redis).
+- `@nestjs/platform-express` được khai báo ở workspace root: khi chạy `nest start`, `@nestjs/core` (hoisted ở root) nạp HTTP driver động nên driver phải cùng cấp với nó.
 
 ## Tài liệu
 
