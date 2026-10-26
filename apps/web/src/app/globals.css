@@ -26,7 +26,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
 ::selection { background: #dfedc5; }
 
-.site-header { border-bottom: 1px solid var(--line); background: var(--canvas); }
+.site-header { position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--line); background: var(--canvas); }
 .site-header-inner, .site-nav-inner, .site-footer-inner { width: min(100% - 48px, 1280px); margin-inline: auto; }
 .site-header-inner { min-height: 76px; display: grid; grid-template-columns: minmax(185px, 1fr) minmax(260px, 560px) minmax(185px, 1fr); align-items: center; gap: 28px; }
 .site-nav { border-top: 1px solid rgb(25 63 50 / 5%); }

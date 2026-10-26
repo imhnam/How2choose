@@ -59,20 +59,30 @@ export class RecommendationsService {
     if (!recipientId) throw new NotFoundException('Vui lòng chọn hồ sơ người nhận.');
     const beforeDate = before ? new Date(before) : undefined;
     if (beforeDate && Number.isNaN(beforeDate.getTime())) throw new BadRequestException('Mốc lịch sử trò chuyện không hợp lệ.');
-    const conversation = await this.prisma.recommendationConversation.findFirst({
-      where: { ownerId, recipientId, recipient: { ownerId } },
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        messages: {
-          ...(beforeDate ? { where: { createdAt: { lt: beforeDate } } } : {}),
-          orderBy: { createdAt: 'desc' as const },
-          take: conversationPageSize + 1,
+    const recipient = await this.prisma.recipient.findFirst({
+      where: { id: recipientId, ownerId },
+      select: {
+        id: true,
+        recommendationConversations: {
+          where: { ownerId },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            occasion: true,
+            budgetVnd: true,
+            messages: {
+              ...(beforeDate ? { where: { createdAt: { lt: beforeDate } } } : {}),
+              orderBy: { createdAt: 'desc' as const },
+              take: conversationPageSize + 1,
+            },
+          },
         },
       },
     });
+    if (!recipient) throw new NotFoundException('Không tìm thấy hồ sơ người nhận.');
+    const conversation = recipient.recommendationConversations[0];
     if (!conversation) {
-      const recipient = await this.prisma.recipient.findFirst({ where: { id: recipientId, ownerId }, select: { id: true } });
-      if (!recipient) throw new NotFoundException('Không tìm thấy hồ sơ người nhận.');
       return { conversationId: null, occasion: null, budgetVnd: null, messages: [], hasMoreMessages: false };
     }
     const hasMoreMessages = conversation.messages.length > conversationPageSize;

@@ -100,14 +100,17 @@ describe('RecommendationsService', () => {
   beforeEach(() => {
     process.env.GEMINI_API_KEY = 'unit-test-key';
     process.env.GEMINI_MODEL = 'gemini_2.5_flash_lite';
-    recipientFindFirst.mockResolvedValue({
+    const recipientProfile = {
       displayName: 'An',
       relationship: 'Bạn',
       birthday: null,
       interests: ['đọc sách'],
       dislikes: ['đồ ngọt'],
       notes: 'Thích sản phẩm thủ công',
-    });
+    };
+    recipientFindFirst.mockImplementation(({ select }: { select?: { recommendationConversations?: unknown } }) => Promise.resolve(
+      select?.recommendationConversations ? { id: 'recipient-1', recommendationConversations: [] } : recipientProfile,
+    ));
     conversationFindFirst.mockResolvedValue(null);
     const savedConversation = (data: { occasion: string; budgetVnd: number; messages: { create: Array<{ role: string; content: string; bundles?: unknown }> } }, id = 'conversation-1') => ({
       id,
@@ -205,34 +208,61 @@ describe('RecommendationsService', () => {
 
   it('loads recent history in pages and scopes the conversation to its recipient owner', async () => {
     const createdAt = (index: number) => new Date(Date.UTC(2026, 9, 21, 10, 0, index));
-    conversationFindFirst.mockResolvedValue({
-      id: 'conversation-history',
-      occasion: 'birthday',
-      budgetVnd: 500000,
-      messages: Array.from({ length: 21 }, (_, index) => ({
-        id: `message-${20 - index}`,
-        role: index % 2 ? 'ASSISTANT' : 'USER',
-        content: `message-${20 - index}`,
-        bundles: [],
-        createdAt: createdAt(20 - index),
-      })),
+    recipientFindFirst.mockResolvedValue({
+      id: 'recipient-1',
+      recommendationConversations: [{
+        id: 'conversation-history',
+        occasion: 'birthday',
+        budgetVnd: 500000,
+        messages: Array.from({ length: 21 }, (_, index) => ({
+          id: `message-${20 - index}`,
+          role: index % 2 ? 'ASSISTANT' : 'USER',
+          content: `message-${20 - index}`,
+          bundles: [],
+          createdAt: createdAt(20 - index),
+        })),
+      }],
     });
 
     const result = await service.getConversation('owner-1', 'recipient-1');
 
-    expect(conversationFindFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { ownerId: 'owner-1', recipientId: 'recipient-1', recipient: { ownerId: 'owner-1' } },
-      include: { messages: { orderBy: { createdAt: 'desc' }, take: 21 } },
+    expect(recipientFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'recipient-1', ownerId: 'owner-1' },
+      select: {
+        id: true,
+        recommendationConversations: {
+          where: { ownerId: 'owner-1' },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+          select: { id: true, occasion: true, budgetVnd: true, messages: { orderBy: { createdAt: 'desc' }, take: 21 } },
+        },
+      },
     }));
     expect(result.messages).toHaveLength(20);
     expect(result.messages[0].id).toBe('message-1');
     expect(result.hasMoreMessages).toBe(true);
 
-    conversationFindFirst.mockClear();
+    recipientFindFirst.mockClear();
     await service.getConversation('owner-1', 'recipient-1', createdAt(1).toISOString());
-    expect(conversationFindFirst).toHaveBeenCalledWith(expect.objectContaining({
-      include: { messages: { where: { createdAt: { lt: createdAt(1) } }, orderBy: { createdAt: 'desc' }, take: 21 } },
+    expect(recipientFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      select: expect.objectContaining({
+        recommendationConversations: expect.objectContaining({
+          select: expect.objectContaining({
+            messages: { where: { createdAt: { lt: createdAt(1) } }, orderBy: { createdAt: 'desc' }, take: 21 },
+          }),
+        }),
+      }),
     }));
+  });
+
+  it('returns empty history from one owner-scoped recipient query when no conversation exists', async () => {
+    recipientFindFirst.mockClear();
+    conversationFindFirst.mockClear();
+    const result = await service.getConversation('owner-1', 'recipient-1');
+
+    expect(result).toEqual({ conversationId: null, occasion: null, budgetVnd: null, messages: [], hasMoreMessages: false });
+    expect(recipientFindFirst).toHaveBeenCalledTimes(1);
+    expect(conversationFindFirst).not.toHaveBeenCalled();
   });
 
   it('continues an owned conversation with previous user and assistant turns', async () => {

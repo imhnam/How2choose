@@ -1,7 +1,7 @@
 # Howtochoose — agent instructions
 
 ## Context
-Read docs/product.md for product scope and docs/tasks.md for progress. Read the relevant specification before implementing a feature. Product assumptions are explicitly marked in the docs.
+Read docs/project-context.md first for a compact map of the codebase, routes, data model and conventions. Read docs/product.md for product scope and docs/tasks.md for progress. Read the relevant specification before implementing a feature. Product assumptions are explicitly marked in the docs. Update docs/project-context.md when module structure, main flows or feature status change.
 For account or recipient changes, read specs/authentication.md and specs/recipient-profile.md.
 
 ## Structure

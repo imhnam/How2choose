@@ -51,6 +51,7 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
   const router = useRouter();
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
+  const selectedRecipientIdRef = useRef<string | undefined>(undefined);
   const [budget, setBudget] = useState(700000);
   const [occasion, setOccasion] = useState<(typeof occasions)[number]['value']>('birthday');
   const [requestText, setRequestText] = useState('');
@@ -67,6 +68,10 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
   const shouldScrollToBottomRef = useRef(false);
 
   useEffect(() => {
+    selectedRecipientIdRef.current = recipient?.id;
+  }, [recipient?.id]);
+
+  useEffect(() => {
     if (!shouldScrollToBottomRef.current) return;
     shouldScrollToBottomRef.current = false;
     chatMessagesRef.current?.scrollTo({ top: chatMessagesRef.current.scrollHeight, behavior: 'smooth' });
@@ -79,8 +84,10 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
         if (!active) return;
         setRecipients(people);
         const selected = people.find(person => person.id === initialRecipient) ?? people[0] ?? null;
-        setRecipient(selected);
-        setConversationLoading(Boolean(selected));
+        if (selectedRecipientIdRef.current !== selected?.id) {
+          setRecipient(selected);
+          setConversationLoading(Boolean(selected));
+        }
       })
       .catch(reason => {
         if (!active) return;
@@ -224,9 +231,9 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
       <section className="flex h-[min(75vh,760px)] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-[#dfe5d9] bg-white">
         <div className="flex shrink-0 items-center gap-3 border-b border-[#edf1e8] p-4"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#193f32] text-white">✧</span><div><h2 className="font-bold">Trợ lý chọn quà</h2></div></div>
         <div ref={chatMessagesRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-          {conversationLoading && <p role="status" className="rounded-xl bg-[#f4f6f1] p-4 text-sm text-[#64756b]">Đang tải lịch sử trò chuyện...</p>}
+          {conversationLoading && <p role="status" className="text-xs text-[#849188]">Đang kiểm tra lịch sử trò chuyện...</p>}
           {hasMoreMessages && !conversationLoading && <button type="button" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages(); }} className="mx-auto block rounded-full border border-[#dfe5d9] px-4 py-2 text-sm font-semibold text-[#193f32] disabled:opacity-50">{loadingOlderMessages ? 'Đang tải...' : 'Tải tin nhắn cũ hơn'}</button>}
-          {!conversationLoading && !messages.length && <div className="max-w-[86%] rounded-2xl rounded-tl-sm bg-[#edf1e8] p-4 text-sm"><p>{recipient ? `Chào bạn! Hãy chọn dịp, ngân sách và cho mình biết bạn đang tìm món quà như thế nào cho ${recipient.displayName}.` : 'Chọn người nhận để bắt đầu trò chuyện.'}</p></div>}
+          {!messages.length && <div className="max-w-[86%] rounded-2xl rounded-tl-sm bg-[#edf1e8] p-4 text-sm"><p>{recipient ? `Chào bạn! Hãy chọn dịp, ngân sách và cho mình biết bạn đang tìm món quà như thế nào cho ${recipient.displayName}.` : 'Chọn người nhận để bắt đầu trò chuyện.'}</p></div>}
           {notice && <p role="status" className="rounded-xl bg-[#edf1e8] p-3 text-sm text-green-900">{notice}</p>}
           {messages.map(message => <div key={message.id} className={message.role === 'USER' ? 'ml-auto max-w-[85%]' : 'max-w-[95%]'}>
             <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm ${message.role === 'USER' ? 'rounded-tr-sm bg-[#193f32] text-white' : 'rounded-tl-sm bg-[#edf1e8]'}`}>{message.content}</div>
