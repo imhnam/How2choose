@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, CatalogProduct, Recipient } from '@/lib/api';
 import { ProductArtwork } from '@/components/product-artwork';
@@ -69,9 +69,42 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const chatMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chatMenuOpen) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (!chatMenuRef.current?.contains(event.target as Node)) setChatMenuOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setChatMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => { document.removeEventListener('mousedown', handlePointerDown); document.removeEventListener('keydown', handleKeyDown); };
+  }, [chatMenuOpen]);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
+  const chatSectionRef = useRef<HTMLDivElement>(null);
   const shouldScrollToBottomRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [chatHeight, setChatHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const computeChatHeight = () => {
+      const element = chatSectionRef.current;
+      if (!element) return;
+      if (!window.matchMedia('(min-width: 1024px)').matches) { setChatHeight(undefined); return; }
+      const top = window.scrollY + element.getBoundingClientRect().top;
+      const bottomGap = 20;
+      const available = Math.floor(window.innerHeight - top - bottomGap);
+      setChatHeight(Math.max(420, Math.min(available, 900)));
+    };
+    computeChatHeight();
+    window.addEventListener('resize', computeChatHeight);
+    return () => window.removeEventListener('resize', computeChatHeight);
+  }, [loading, recipient?.id, recipients.length]);
 
   useEffect(() => {
     selectedRecipientIdRef.current = recipient?.id;
@@ -274,34 +307,40 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
     setNotice(`Đã thêm gói “${bundle.title}” vào giỏ hàng.${failed.length ? ` Bỏ qua ${failed.map(item => item.product.name).join(', ')} vì đã hết hàng hoặc ngừng bán.` : ''}`);
   }
 
-  if (loading) return <main className="page-container min-h-[50vh] flex-1 py-16" role="status">Đang tải thông tin người nhận và quà tặng...</main>;
+  if (loading) return <main className="page-container flex min-h-[50vh] flex-1 flex-col items-center justify-center py-16 text-center" role="status"><Image src="/images/mascot/mascot-laptop.png" alt="" width={223} height={289} className="w-28 sm:w-32" /><p className="mt-4 text-[#64756b]">Đang tải thông tin người nhận và quà tặng...</p></main>;
 
-  return <main className="page-container flex-1 py-8 sm:py-10">
-    <p className="eyebrow">Gợi ý quà bằng AI</p><h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Tìm quà cho {recipient?.displayName ?? 'người bạn quan tâm'}</h1>
-    <section aria-label="Chọn người nhận" className="mt-5 flex gap-5 overflow-x-auto rounded-2xl border border-[#dfe5d9] bg-white p-4">
-      {recipients.length ? recipients.map(person => <button key={person.id} type="button" aria-pressed={recipient?.id === person.id} onClick={() => selectRecipient(person.id)} className="flex w-20 shrink-0 flex-col items-center gap-2 rounded-xl p-2 text-center hover:bg-[#f4f6f1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#193f32]">
-        <span className={`grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-[#edf1e8] font-bold ring-2 ring-offset-2 ${recipient?.id === person.id ? 'ring-[#193f32]' : 'ring-transparent'}`}>
-          {person.avatarUrl ? <Image src={person.avatarUrl} alt="" width={56} height={56} unoptimized className="h-full w-full object-cover" /> : person.displayName.slice(0, 2).toUpperCase()}
-        </span>
-        <span className={`w-full truncate text-xs ${recipient?.id === person.id ? 'font-bold text-[#193f32]' : 'text-[#64756b]'}`}>{person.displayName}</span>
-      </button>) : <div className="flex items-center gap-3 text-sm text-[#64756b]"><span>Chưa có hồ sơ người nhận.</span><Link href="/recipients" className="font-semibold text-[#193f32] underline">Tạo hồ sơ</Link></div>}
-    </section>
-    <div className="mt-6 grid items-start gap-5 lg:grid-cols-[285px_minmax(0,1fr)]">
-      <aside className="space-y-4">
-        <section className="surface p-4"><h2 className="font-extrabold">Dịp tặng quà</h2><div className="mt-3 flex flex-wrap gap-2">{occasions.map(item=><button key={item.value} type="button" aria-pressed={occasion===item.value} onClick={()=>setOccasion(item.value)} className={`rounded-full border px-3 py-2 text-xs ${occasion===item.value?'border-[#193f32] bg-[#193f32] font-bold text-white':'border-[#dfe5d9] bg-white'}`}>{item.label}</button>)}</div></section>
-        <section className="surface p-4"><h2 className="flex items-center justify-between font-extrabold">Ngân sách tối đa<input aria-label="Nhập ngân sách tối đa" type="number" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>{ const value = Number(event.target.value); if (!Number.isNaN(value)) setBudget(value); }} onBlur={event=>setBudget(Math.min(maxBudget, Math.max(minBudget, Number(event.target.value) || minBudget)))} className="w-28 rounded-lg border border-[#dfe5d9] px-2 py-1 text-right text-sm" /></h2><input aria-label="Ngân sách tối đa" type="range" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>setBudget(Number(event.target.value))} className="mt-4 w-full accent-[#193f32]" /><div className="flex justify-between text-xs text-[#64756b]"><span>{money(minBudget)}</span><span>{money(maxBudget)}</span></div></section>
-        <section className="surface p-4"><h2 className="font-extrabold">Sở thích</h2><div className="mt-3 flex flex-wrap gap-2">{(recipient?.interests.length ? recipient.interests : ['Thêm sở thích trong hồ sơ']).map(item=><span key={item} className="pill">{item}</span>)}</div><h3 className="mt-5 text-sm font-bold">Không thích</h3><div className="mt-3 flex flex-wrap gap-2">{(recipient?.dislikes.length ? recipient.dislikes : ['Chưa có dữ liệu']).map(item=><span key={item} className="rounded-full border border-dashed border-[#b9c7b9] px-3 py-1.5 text-xs">{item}</span>)}</div><Link href={recipient?`/recipients/${encodeURIComponent(recipient.id)}`:'/recipients'} className="mt-4 inline-block text-xs font-semibold underline">Chỉnh sửa hồ sơ</Link></section>
-        {recipient?.notes && <section className="rounded-2xl border border-[#dfe5d9] bg-[#edf1e8] p-4"><h2 className="font-extrabold">Ghi chú</h2><p className="mt-2 text-sm leading-6 text-[#64756b]">{recipient.notes}</p></section>}
-        <button type="button" disabled={!recipient || requesting || conversationLoading} onClick={() => { void requestRecommendations(); }} className="btn-accent w-full disabled:cursor-not-allowed disabled:opacity-50">{requesting ? 'Đang tìm quà phù hợp...' : messages.length ? 'Tìm gợi ý mới' : 'Tìm quà phù hợp'}</button>
+  return <main className="page-container flex-1 py-4 sm:py-5">
+    <p className="eyebrow">Gợi ý quà bằng AI</p><h1 className="mt-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl">Tìm quà cho {recipient?.displayName ?? 'người bạn quan tâm'}</h1>
+    <div className={`mt-4 grid items-start gap-4 ${filtersOpen ? 'lg:grid-cols-[260px_200px_minmax(0,1fr)]' : 'lg:grid-cols-[52px_200px_minmax(0,1fr)]'}`} style={chatHeight ? { '--col-h': `${chatHeight}px` } as CSSProperties : undefined}>
+      <aside className={`order-3 rounded-2xl border border-[#dfe5d9] bg-white p-3 lg:order-none lg:p-2 ${filtersOpen ? 'space-y-3 lg:flex lg:h-[var(--col-h)] lg:min-h-[420px] lg:flex-col lg:justify-between lg:overflow-y-auto' : 'lg:h-fit lg:pt-2'}`}>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className={`text-xs font-extrabold uppercase tracking-wide text-[#64756b] ${filtersOpen ? '' : 'hidden'}`}>Bộ lọc gợi ý</h2>
+          <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen} aria-label={filtersOpen ? 'Thu gọn bộ lọc gợi ý' : 'Mở bộ lọc gợi ý'} className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dfe5d9] bg-white text-[#193f32] hover:bg-[#edf1e8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#193f32]">{filtersOpen ? '›' : '‹'}</button>
+        </div>
+        <div className={`${filtersOpen ? 'space-y-3' : 'hidden lg:hidden'}`}>
+        <section className="surface p-3.5"><h3 className="font-extrabold">Dịp tặng quà</h3><div className="mt-2.5 flex flex-wrap gap-2">{occasions.map(item=><button key={item.value} type="button" aria-pressed={occasion===item.value} onClick={()=>setOccasion(item.value)} className={`rounded-full border px-3 py-1.5 text-xs ${occasion===item.value?'border-[#193f32] bg-[#193f32] font-bold text-white':'border-[#dfe5d9] bg-white'}`}>{item.label}</button>)}</div></section>
+        <section className="surface p-3.5"><h3 className="flex items-center justify-between font-extrabold">Ngân sách tối đa<input aria-label="Nhập ngân sách tối đa" type="number" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>{ const value = Number(event.target.value); if (!Number.isNaN(value)) setBudget(value); }} onBlur={event=>setBudget(Math.min(maxBudget, Math.max(minBudget, Number(event.target.value) || minBudget)))} className="w-28 rounded-lg border border-[#dfe5d9] px-2 py-1 text-right text-sm" /></h3><input aria-label="Ngân sách tối đa" type="range" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>setBudget(Number(event.target.value))} className="mt-3 w-full accent-[#193f32]" /><div className="flex justify-between text-xs text-[#64756b]"><span>{money(minBudget)}</span><span>{money(maxBudget)}</span></div></section>
+        <section className="surface p-3.5"><h3 className="font-extrabold">Sở thích</h3><div className="mt-2.5 flex flex-wrap gap-2">{(recipient?.interests.length ? recipient.interests : ['Thêm sở thích trong hồ sơ']).map(item=><span key={item} className="pill">{item}</span>)}</div><h4 className="mt-3 text-sm font-bold">Không thích</h4><div className="mt-2 flex flex-wrap gap-2">{(recipient?.dislikes.length ? recipient.dislikes : ['Chưa có dữ liệu']).map(item=><span key={item} className="rounded-full border border-dashed border-[#b9c7b9] px-3 py-1 text-xs">{item}</span>)}</div><Link href={recipient?`/recipients/${encodeURIComponent(recipient.id)}`:'/recipients'} className="mt-3 inline-block text-xs font-semibold underline">Chỉnh sửa hồ sơ</Link></section>
+        {recipient?.notes && <section className="rounded-2xl border border-[#dfe5d9] bg-[#edf1e8] p-3.5"><h3 className="font-extrabold">Ghi chú</h3><p className="mt-1.5 text-sm leading-6 text-[#64756b]">{recipient.notes}</p></section>}
+        </div>
+        {filtersOpen && <button type="button" disabled={!recipient || requesting || conversationLoading} onClick={() => { void requestRecommendations(); }} className="btn-accent w-full shrink-0 disabled:cursor-not-allowed disabled:opacity-50">{requesting ? 'Đang tìm quà phù hợp...' : messages.length ? 'Tìm gợi ý mới' : 'Tìm quà phù hợp'}</button>}
       </aside>
-      <section className="flex h-[min(75vh,760px)] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-[#dfe5d9] bg-white">
-        <div className="flex shrink-0 items-center gap-3 border-b border-[#edf1e8] p-4"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#193f32] text-white">✧</span><h2 className="font-bold">Trợ lý chọn quà</h2><div className="ml-auto flex items-center gap-4 text-xs font-semibold"><button type="button" disabled={!recipient || requesting || conversationLoading || clearingHistory} onClick={startNewConversation} className="text-[#193f32] underline disabled:opacity-50">Hội thoại mới</button>{messages.length > 0 && <button type="button" disabled={!recipient || requesting || conversationLoading || clearingHistory} onClick={() => { void clearHistory(); }} className="text-[#8a2f2f] underline disabled:opacity-50">{clearingHistory ? 'Đang xóa...' : 'Xóa lịch sử'}</button>}</div></div>
+      <section aria-label="Chọn người nhận" className="order-1 flex gap-3 overflow-x-auto rounded-2xl border border-[#dfe5d9] bg-white p-2 lg:order-none lg:h-[var(--col-h)] lg:min-h-[420px] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto">
+        {recipients.length ? recipients.map(person => <button key={person.id} type="button" aria-pressed={recipient?.id === person.id} onClick={() => selectRecipient(person.id)} className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1.5 rounded-xl p-1.5 text-center hover:bg-[#f4f6f1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#193f32] lg:w-full lg:flex-row lg:gap-2.5 lg:p-2 lg:text-left">
+        <span className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-[#edf1e8] font-bold ring-2 ring-offset-2 ${recipient?.id === person.id ? 'ring-[#193f32]' : 'ring-transparent'}`}>
+          {person.avatarUrl ? <Image src={person.avatarUrl} alt="" width={48} height={48} unoptimized className="h-full w-full object-cover" /> : person.displayName.slice(0, 2).toUpperCase()}
+        </span>
+        <span className={`w-full truncate text-xs lg:text-sm ${recipient?.id === person.id ? 'font-bold text-[#193f32]' : 'text-[#64756b]'}`}>{person.displayName}</span>
+      </button>) : <div className="flex items-center gap-3 text-sm text-[#64756b]"><span>Chưa có hồ sơ người nhận.</span><Link href="/recipients" className="font-semibold text-[#193f32] underline">Tạo hồ sơ</Link></div>}
+      </section>
+      <section ref={chatSectionRef} style={chatHeight ? { height: chatHeight } : undefined} className="order-2 flex h-[min(75vh,760px)] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-[#dfe5d9] bg-white lg:order-none lg:h-auto">
+        <div className="flex shrink-0 items-center gap-3 border-b border-[#edf1e8] p-4"><span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#edf1e8]"><Image src="/images/mascot/mascot-icon.png" alt="" width={36} height={36} className="h-full w-full scale-110 object-cover" /></span><h2 className="font-bold">Trợ lý chọn quà</h2><div ref={chatMenuRef} className="relative ml-auto"><button type="button" aria-haspopup="menu" aria-expanded={chatMenuOpen} aria-label="Tuỳ chọn hội thoại" onClick={() => setChatMenuOpen(open => !open)} className="grid h-9 w-9 place-items-center rounded-full border border-[#dfe5d9] bg-white text-[#193f32] hover:bg-[#edf1e8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#193f32]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><circle cx="12" cy="5" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="12" cy="19" r="1.9" /></svg></button>{chatMenuOpen && <div role="menu" aria-label="Tuỳ chọn hội thoại" className="absolute right-0 top-full z-20 mt-2 w-48 rounded-xl border border-[#dfe5d9] bg-white p-1.5 shadow-lg"><button type="button" role="menuitem" disabled={!recipient || requesting || conversationLoading || clearingHistory} onClick={() => { setChatMenuOpen(false); startNewConversation(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#193f32] hover:bg-[#edf1e8] disabled:cursor-not-allowed disabled:opacity-50"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>Hội thoại mới</button>{messages.length > 0 && <button type="button" role="menuitem" disabled={!recipient || requesting || conversationLoading || clearingHistory} onClick={() => { setChatMenuOpen(false); void clearHistory(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#8a2f2f] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 7V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2m-8 0 .7 12a2 2 0 0 0 2 1.9h4.6a2 2 0 0 0 2-1.9L18 7M10 11v6m4-6v6" /></svg>{clearingHistory ? 'Đang xóa...' : 'Xóa lịch sử'}</button>}</div>}</div></div>
         <div ref={chatMessagesRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-          {conversationLoading && <p role="status" className="text-xs text-[#849188]">Đang kiểm tra lịch sử trò chuyện...</p>}
+          {conversationLoading && <div role="status" className="flex items-center gap-3"><Image src="/images/mascot/mascot-laptop.png" alt="" width={112} height={145} className="w-10" /><p className="text-xs text-[#849188]">Đang kiểm tra lịch sử trò chuyện...</p></div>}
           {hasMoreMessages && !conversationLoading && <button type="button" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages(); }} className="mx-auto block rounded-full border border-[#dfe5d9] px-4 py-2 text-sm font-semibold text-[#193f32] disabled:opacity-50">{loadingOlderMessages ? 'Đang tải...' : 'Tải tin nhắn cũ hơn'}</button>}
-          {!messages.length && <div className="max-w-[86%] rounded-2xl rounded-tl-sm bg-[#edf1e8] p-4 text-sm"><p>{recipient ? `Chào bạn! Hãy chọn dịp, ngân sách và cho mình biết bạn đang tìm món quà như thế nào cho ${recipient.displayName}.` : 'Chọn người nhận để bắt đầu trò chuyện.'}</p></div>}
+          {!messages.length && <div className="flex max-w-[60%] items-end gap-3 rounded-2xl rounded-tl-sm bg-[#edf1e8] p-4 text-sm"><Image src="/images/mascot/mascot-wave.png" alt="" width={217} height={304} className="w-16 shrink-0" /><p>{recipient ? `Chào bạn! Hãy chọn dịp, ngân sách và cho mình biết bạn đang tìm món quà như thế nào cho ${recipient.displayName}.` : 'Chọn người nhận để bắt đầu trò chuyện.'}</p></div>}
           {notice && <p role="status" className="rounded-xl bg-[#edf1e8] p-3 text-sm text-green-900">{notice}</p>}
-          {messages.map(message => <div key={message.id} className={message.role === 'USER' ? 'ml-auto max-w-[85%]' : 'max-w-[95%]'}>
+          {messages.map(message => <div key={message.id} className={message.role === 'USER' ? 'ml-auto max-w-[60%]' : 'max-w-[60%]'}>
             <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm ${message.role === 'USER' ? 'rounded-tr-sm bg-[#193f32] text-white' : 'rounded-tl-sm bg-[#edf1e8]'}`}>{message.content}</div>
             {message.role === 'ASSISTANT' && message.bundles.map((bundle, bundleIndex) => <article key={`${message.id}-${bundleIndex}`} className="mt-3 rounded-2xl border border-[#dfe5d9] p-4">
               <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-bold text-[#64756b]">Gói quà {bundleIndex + 1}</p><h3 className="mt-1 font-extrabold">{bundle.title}</h3></div><div className="text-right"><p className="text-xs text-[#64756b]">Tổng gói</p><strong>{money(bundle.totalPriceVnd)}</strong></div></div>
@@ -317,15 +356,16 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
               <button type="button" onClick={() => { void addBundleToCart(bundle); }} className="btn-primary mt-3 min-h-9 px-4 text-xs">Thêm cả gói vào giỏ</button>
             </article>)}
           </div>)}
-          {requesting && <div role="status" className="flex items-center gap-3"><div aria-label="Trợ lý đang nhập tin nhắn" className="flex w-fit items-center gap-1.5 rounded-2xl rounded-tl-sm bg-[#edf1e8] px-4 py-3">
+          {requesting && <div role="status" className="flex items-center gap-3"><div aria-label="Trợ lý đang nhập tin nhắn" className="flex w-fit items-center gap-2 rounded-2xl rounded-tl-sm px-1 py-1">
             <span className="sr-only">Trợ lý đang nhập tin nhắn</span>
+            <Image src="/images/mascot/mascot-idea.png" alt="" width={211} height={322} className="w-8" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#64756b]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#64756b] [animation-delay:150ms]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#64756b] [animation-delay:300ms]" />
-          </div><button type="button" onClick={cancelRequest} className="text-xs font-semibold text-[#8a2f2f] underline">Hủy</button></div>}
+          </div></div>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         </div>
-        <form onSubmit={requestRecommendations} className="flex shrink-0 items-center gap-3 border-t border-[#edf1e8] bg-[#f8f7f1] p-4"><input value={requestText} onChange={event=>setRequestText(event.target.value)} maxLength={500} placeholder="Nhắn thêm yêu cầu, ví dụ: ưu tiên quà thủ công..." aria-label="Nhập tin nhắn cho trợ lý chọn quà" className="form-control rounded-full" /><button type="submit" disabled={!recipient || requesting || conversationLoading} aria-label="Gửi tin nhắn" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#193f32] text-white disabled:opacity-50">{requesting?'…':'→'}</button></form>
+        <form onSubmit={requestRecommendations} className="flex shrink-0 items-center gap-3 border-t border-[#edf1e8] bg-[#f8f7f1] p-4"><input value={requestText} onChange={event=>setRequestText(event.target.value)} maxLength={500} placeholder="Nhắn thêm yêu cầu, ví dụ: ưu tiên quà thủ công..." aria-label="Nhập tin nhắn cho trợ lý chọn quà" className="form-control rounded-full" />{requesting ? <button type="button" onClick={cancelRequest} aria-label="Hủy yêu cầu gợi ý" title="Hủy yêu cầu" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#193f32] text-white hover:bg-[#8a2f2f]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2" /><rect x="14" y="5" width="4" height="14" rx="1.2" /></svg></button> : <button type="submit" disabled={!recipient || conversationLoading} aria-label="Gửi tin nhắn" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#193f32] text-white disabled:opacity-50">↑</button>}</form>
       </section>
     </div>
   </main>;

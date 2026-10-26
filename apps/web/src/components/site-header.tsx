@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { FormEvent, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { HomeAccountNav } from '@/components/home-account-nav';
@@ -27,7 +28,7 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="site-header-inner">
         <Link href="/" className="flex w-fit items-center gap-2 text-xl font-extrabold tracking-tight no-underline" aria-label="How2choose - Trang chủ">
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6 text-[#193f32]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="9" width="16" height="12" rx="2" /><path d="M12 9v12M4 13h16M12 9c-4 0-6-5-3-5 2 0 3 5 3 5Zm0 0c4 0 6-5 3-5-2 0-3 5-3 5Z" /><path d="M18 5h2" stroke="#ff4d00" /></svg>
+          <Image src="/images/mascot/mascot-icon.png" alt="" width={244} height={194} className="h-7 w-9 shrink-0 rounded-lg object-cover" priority />
           <span>How<span className="text-orange-600">2</span>choose</span>
         </Link>
         <form onSubmit={search} role="search" className="site-search flex items-center rounded-full border border-[#d4ddd1] bg-white px-4 focus-within:border-[#193f32]">

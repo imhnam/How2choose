@@ -36,6 +36,7 @@ export default function Home() {
           <div className="relative aspect-[1.13/1]">
             <Image src="/images/home-gift.png" alt="Hộp quà How2choose dành tặng cho bạn" fill priority sizes="(max-width: 1024px) 100vw, 560px" className="object-contain rotate-[3deg]" />
           </div>
+          <Image src="/images/mascot/mascot-gift.png" alt="" width={553} height={786} className="pointer-events-none absolute -bottom-6 -left-2 hidden w-24 -rotate-6 select-none sm:block lg:-left-10 lg:w-32" />
         </div>
       </section>
 
@@ -62,7 +63,7 @@ export default function Home() {
       <section className="page-container py-14 sm:py-16">
         <div className="mb-7 flex items-end justify-between gap-4"><h2 className="text-3xl font-extrabold tracking-tight">Quà được yêu thích</h2><Link href="/catalog" className="border-b border-[#ff4d00] pb-1 text-sm font-semibold no-underline">Xem catalog quà tặng →</Link></div>
         {productError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{productError}</p>}
-        {loading ? <p role="status" className="py-8 text-[#64756b]">Đang tải sản phẩm...</p> : products.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">{products.map(product => <ProductCard key={product.id} product={product} />)}</div> : !productError && <p className="py-8 text-[#64756b]">Hiện chưa có sản phẩm nổi bật.</p>}
+        {loading ? <div role="status" className="flex items-center gap-4 py-8 text-[#64756b]"><Image src="/images/mascot/mascot-laptop.png" alt="" width={223} height={289} className="w-14" /><p>Đang tải sản phẩm...</p></div> : products.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">{products.map(product => <ProductCard key={product.id} product={product} />)}</div> : !productError && <div className="flex items-center gap-4 py-8 text-[#64756b]"><Image src="/images/mascot/mascot-excited.png" alt="" width={226} height={278} className="w-16" /><p>Hiện chưa có sản phẩm nổi bật.</p></div>}
       </section>
     </main>
   </>;

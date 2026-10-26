@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { api, CatalogCategory, CatalogProduct, Place } from '@/lib/api';
 import { ProductCard } from '@/components/product-card';
 
@@ -84,7 +85,7 @@ export default function CatalogClient({ initialCategory, initialSearch }: { init
       <section aria-label="Danh sách sản phẩm">
         <p className="text-sm text-stone-600">{priceInvalid ? 'Điều chỉnh khoảng giá để xem kết quả' : loading ? 'Đang tải...' : `${total} sản phẩm`}</p>
         {error && <p role="alert" className="mt-6 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
-        {priceInvalid ? null : loading ? <p className="mt-8 text-stone-600" role="status">Đang tải sản phẩm...</p> : products.length === 0 ? <p className="mt-8 rounded-xl bg-white p-6 text-stone-600">Chưa có sản phẩm phù hợp. Hãy thử thay đổi bộ lọc.</p> : <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{products.map(product => <ProductCard key={product.id} product={product} />)}</div>}
+        {priceInvalid ? null : loading ? <div className="mt-8 flex items-center gap-4 text-stone-600" role="status"><Image src="/images/mascot/mascot-laptop.png" alt="" width={223} height={289} className="w-14" /><p>Đang tải sản phẩm...</p></div> : products.length === 0 ? <div className="mt-8 flex items-center gap-5 rounded-2xl bg-white p-6"><Image src="/images/mascot/mascot-excited.png" alt="" width={226} height={278} className="w-20 shrink-0" /><div><p className="font-bold">Chưa có sản phẩm phù hợp</p><p className="mt-1.5 text-sm text-stone-600">Hãy thử thay đổi bộ lọc, dịp hoặc khoảng giá bạn nhé.</p></div></div> : <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{products.map(product => <ProductCard key={product.id} product={product} />)}</div>}
         {!priceInvalid && totalPages > 1 && <nav aria-label="Phân trang sản phẩm" className="mt-8 flex flex-wrap items-center justify-center gap-2">
           <button type="button" onClick={() => { setPage(current => current - 1); setLoading(true); }} disabled={page === 1 || loading} aria-label="Trang trước" className="grid h-10 min-w-10 place-items-center rounded-full border border-[#dfe5d9] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">←</button>
           {pageNumbers.map((pageNumber, index) => pageNumber === 'ellipsis'
