@@ -103,7 +103,7 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     const suffix=randomUUID().slice(0,10);
     const user=await agent.post('/api/auth/register').send({displayName:'Rate limit',identifier:'rate-'+suffix+'@example.test',password:'StrongPass123'}).expect(201);
     userIds.push(user.body.user.id);
-    const payload={recipientId:'missing-recipient',budgetVnd:300000,occasion:'birthday'};
+    const payload={recipientId:'missing-recipient',budgetVnd:300000,occasion:'birthday',idempotencyKey:'rate-limit-test'};
     for(let attempt=0;attempt<5;attempt++) await agent.post('/api/recommendations').send(payload).expect(404);
     await agent.post('/api/recommendations').send(payload).expect(429);
     const other=request.agent(server);
