@@ -4,6 +4,14 @@ import { StorageService } from '../media/storage.service';
 import { LocationsService } from '../locations/locations.service';
 
 export type CatalogQuery = { category?: string; search?: string; page?: string; limit?: string; region?: string; minPrice?: string; maxPrice?: string; minRating?: string };
+export type AddressVersionKind = 'legacy' | 'current';
+const majorRegionByProvince: Record<number, string> = { 1: 'HN', 79: 'HCM', 48: 'DN' };
+
+/** Chuyển tỉnh/thành của người nhận thành token khu vực khớp cột `shippingRegions` của sản phẩm. */
+export function regionTokenForProvince(version: AddressVersionKind, provinceCode: number): string {
+  return majorRegionByProvince[provinceCode] ?? `${version === 'legacy' ? 'v1' : 'v2'}:${provinceCode}`;
+}
+
 export type RecommendationCandidate = {
   productId: string;
   slug: string;
@@ -99,7 +107,7 @@ export class CatalogService {
       const code = Number(match[2]);
       const provinces = await this.locations.provinces(match[1] === 'v1' ? 'legacy' : 'current');
       if (!provinces.some(province => province.code === code)) throw new BadRequestException('Khu vực không hợp lệ.');
-      shippingRegion = ({ 1: 'HN', 79: 'HCM', 48: 'DN' } as Record<number, string>)[code] ?? shippingRegion;
+      shippingRegion = majorRegionByProvince[code] ?? shippingRegion;
     }
     let categorySlugs: string[] | undefined;
     if (query.category) {
@@ -154,9 +162,13 @@ export class CatalogService {
     return this.serializeProduct(product);
   }
 
-  async recommendationCandidates(maxBudgetVnd: number): Promise<RecommendationCandidate[]> {
+  async recommendationCandidates(maxBudgetVnd: number, region?: string): Promise<RecommendationCandidate[]> {
     const products = await this.prisma.product.findMany({
-      where: { active: true, variants: { some: { active: true, stock: { gt: 0 } } } },
+      where: {
+        active: true,
+        variants: { some: { active: true, stock: { gt: 0 } } },
+        ...(region ? { OR: [{ shippingRegions: { has: 'ALL' } }, { shippingRegions: { has: region } }] } : {}),
+      },
       orderBy: [{ purchaseCount: 'desc' }, { createdAt: 'desc' }],
       take: 100,
       include: {

@@ -26,6 +26,7 @@
 - [ ] Admin CRUD catalog và quản lý media theo biến thể.
 - [x] AI recommendation bằng Gemini: hội thoại lưu PostgreSQL theo hồ sơ, structured output cho gói một/nhiều món, tổng giá xác thực theo ngân sách và kiểm thử mock.
 - [x] Hardening recommendation: rate limit 5 POST/phút/tài khoản, idempotency key, ký lại media URL khi đọc lịch sử, xử lý output bị cắt/bị chặn.
+- [x] Recommendation P1: lọc candidate theo khu vực giao của người nhận, hội thoại mới + xóa lịch sử, revalidate giá/tồn trước khi thêm giỏ, thêm từng món, hủy request, ô nhập ngân sách số.
 - [x] Giỏ hàng, orders, quote GHN staging, VNPAY sandbox, IPN idempotent và tạo vận đơn sau thanh toán.
 - [ ] Xác nhận đã tặng và loại trừ quà cũ.
 - [ ] Playwright cho luồng chính, triển khai demo và README portfolio.

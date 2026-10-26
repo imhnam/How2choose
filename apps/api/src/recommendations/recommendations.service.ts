@@ -1,7 +1,7 @@
 import { BadGatewayException, BadRequestException, ConflictException, GatewayTimeoutException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Prisma, RecommendationMessageRole } from '../generated/prisma/client';
-import { CatalogService, RecommendationCandidate } from '../catalog/catalog.service';
+import { CatalogService, RecommendationCandidate, regionTokenForProvince } from '../catalog/catalog.service';
 import { StorageService } from '../media/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRecommendationDto, GiftOccasion } from './recommendation.dto';
@@ -115,6 +115,14 @@ export class RecommendationsService {
     return summary ? `\n[Gói đã gợi ý trước: ${summary}]` : '';
   }
 
+  async clearConversation(ownerId: string, recipientId: string) {
+    if (!recipientId) throw new NotFoundException('Vui lòng chọn hồ sơ người nhận.');
+    const recipient = await this.prisma.recipient.findFirst({ where: { id: recipientId, ownerId }, select: { id: true } });
+    if (!recipient) throw new NotFoundException('Không tìm thấy hồ sơ người nhận.');
+    const result = await this.prisma.recommendationConversation.deleteMany({ where: { ownerId, recipientId } });
+    return { deleted: result.count };
+  }
+
   async recommend(ownerId: string, input: CreateRecommendationDto): Promise<RecommendationResponse> {
     const key = input.idempotencyKey?.trim();
     const requestHash = key ? this.hashRequest(input) : '';
@@ -167,7 +175,10 @@ export class RecommendationsService {
   private async buildRecommendation(ownerId: string, input: CreateRecommendationDto): Promise<RecommendationResponse> {
     const recipient = await this.prisma.recipient.findFirst({
       where: { id: input.recipientId, ownerId },
-      select: { displayName: true, relationship: true, birthday: true, interests: true, dislikes: true, notes: true },
+      select: {
+        displayName: true, relationship: true, birthday: true, interests: true, dislikes: true, notes: true,
+        addressVersion: true, addressProvinceCode: true,
+      },
     });
     if (!recipient) throw new NotFoundException('Không tìm thấy hồ sơ người nhận.');
 
@@ -184,7 +195,10 @@ export class RecommendationsService {
       || `Tìm gợi ý quà dịp ${occasion}, ngân sách tối đa ${new Intl.NumberFormat('vi-VN').format(input.budgetVnd)}₫.`;
     const userSentAt = new Date(Math.max(Date.now(), (conversation?.messages[0]?.createdAt.getTime() ?? 0) + 1));
     const assistantSentAt = new Date(userSentAt.getTime() + 1);
-    const candidates = await this.catalog.recommendationCandidates(input.budgetVnd);
+    const recipientRegion = recipient.addressVersion === 'legacy' || recipient.addressVersion === 'current'
+      ? regionTokenForProvince(recipient.addressVersion, recipient.addressProvinceCode ?? 0)
+      : undefined;
+    const candidates = await this.catalog.recommendationCandidates(input.budgetVnd, recipientRegion);
     let assistantMessage: string;
     let followUpQuestion: string | null = null;
     let bundles: RecommendationBundle[] = [];

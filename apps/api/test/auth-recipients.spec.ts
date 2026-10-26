@@ -72,6 +72,12 @@ describe('Authentication and recipient ownership (PostgreSQL)', () => {
     expect(history.body.conversationId).toBe(conversation.id);
     expect(history.body.messages.map((message:{role:string})=>message.role)).toEqual(['USER','ASSISTANT']);
     await second.get('/api/recommendations/conversation').query({recipientId:item.body.id}).expect(404);
+    await second.delete('/api/recommendations/conversation').query({recipientId:item.body.id}).expect(404);
+    const cleared=await first.delete('/api/recommendations/conversation').query({recipientId:item.body.id}).expect(200);
+    expect(cleared.body.deleted).toBe(1);
+    const clearedHistory=await first.get('/api/recommendations/conversation').query({recipientId:item.body.id}).expect(200);
+    expect(clearedHistory.body.conversationId).toBeNull();
+    expect(clearedHistory.body.messages).toEqual([]);
     await first.post('/api/recipients').send({
       displayName:'Địa chỉ sai',interests:[],dislikes:[],address:{version:'unsupported',provinceCode:1,wardCode:1,addressLine:'12 Nguyễn Trãi'},
     }).expect(400);

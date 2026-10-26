@@ -85,6 +85,7 @@ describe('RecommendationsService', () => {
   const conversationFindFirst = jest.fn();
   const conversationCreate = jest.fn();
   const conversationUpdate = jest.fn();
+  const conversationDeleteMany = jest.fn();
   const requestFindUnique = jest.fn();
   const requestCreate = jest.fn();
   const productMediaFindMany = jest.fn();
@@ -96,6 +97,7 @@ describe('RecommendationsService', () => {
       findFirst: conversationFindFirst,
       create: conversationCreate,
       update: conversationUpdate,
+      deleteMany: conversationDeleteMany,
     },
     recommendationRequest: {
       findUnique: requestFindUnique,
@@ -119,11 +121,14 @@ describe('RecommendationsService', () => {
       interests: ['đọc sách'],
       dislikes: ['đồ ngọt'],
       notes: 'Thích sản phẩm thủ công',
+      addressVersion: null,
+      addressProvinceCode: null,
     };
     recipientFindFirst.mockImplementation(({ select }: { select?: { recommendationConversations?: unknown } }) => Promise.resolve(
       select?.recommendationConversations ? { id: 'recipient-1', recommendationConversations: [] } : recipientProfile,
     ));
     conversationFindFirst.mockResolvedValue(null);
+    conversationDeleteMany.mockReset();
     requestFindUnique.mockResolvedValue(null);
     requestCreate.mockResolvedValue({});
     productMediaFindMany.mockResolvedValue([]);
@@ -461,6 +466,52 @@ describe('RecommendationsService', () => {
     expect(requestCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ ownerId: 'owner-1', key: 'key-2', conversationId: 'conversation-1' }),
     });
+  });
+
+  it('restricts candidates to the recipient shipping region when the profile has a structured address', async () => {
+    recipientFindFirst.mockImplementation(({ select }: { select?: { recommendationConversations?: unknown } }) => Promise.resolve(
+      select?.recommendationConversations ? { id: 'recipient-1', recommendationConversations: [] } : {
+        displayName: 'An', relationship: 'Bạn', birthday: null, interests: [], dislikes: [], notes: '',
+        addressVersion: 'current', addressProvinceCode: 79,
+      },
+    ));
+    recommendationCandidates.mockResolvedValue([]);
+
+    await service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+    });
+
+    expect(recommendationCandidates).toHaveBeenCalledWith(300000, 'HCM');
+  });
+
+  it('does not filter by region when the recipient has no structured address', async () => {
+    recommendationCandidates.mockResolvedValue([]);
+
+    await service.recommend('owner-1', {
+      recipientId: 'recipient-1',
+      budgetVnd: 300000,
+      occasion: 'birthday',
+    });
+
+    expect(recommendationCandidates).toHaveBeenCalledWith(300000, undefined);
+  });
+
+  it('deletes every conversation of an owned recipient', async () => {
+    recipientFindFirst.mockResolvedValue({ id: 'recipient-1' });
+    conversationDeleteMany.mockReset();
+    conversationDeleteMany.mockResolvedValue({ count: 2 });
+
+    await expect(service.clearConversation('owner-1', 'recipient-1')).resolves.toEqual({ deleted: 2 });
+    expect(conversationDeleteMany).toHaveBeenCalledWith({ where: { ownerId: 'owner-1', recipientId: 'recipient-1' } });
+  });
+
+  it('refuses to delete conversations of a recipient owned by someone else', async () => {
+    recipientFindFirst.mockResolvedValue(null);
+
+    await expect(service.clearConversation('owner-1', 'recipient-else')).rejects.toBeInstanceOf(NotFoundException);
+    expect(conversationDeleteMany).not.toHaveBeenCalled();
   });
 
   it('re-signs stored bundle media when loading history', async () => {

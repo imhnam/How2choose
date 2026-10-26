@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthRequest } from '../auth/auth.types';
@@ -16,6 +16,11 @@ export class RecommendationsController {
   @Get('conversation')
   conversation(@Req() req: AuthRequest, @Query('recipientId') recipientId: string, @Query('before') before?: string) {
     return this.recommendations.getConversation(req.authUser!.id, recipientId, before);
+  }
+
+  @Delete('conversation')
+  clearConversation(@Req() req: AuthRequest, @Query('recipientId') recipientId: string) {
+    return this.recommendations.clearConversation(req.authUser!.id, recipientId);
   }
 
   @Post()

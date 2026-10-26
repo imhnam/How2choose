@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, Recipient } from '@/lib/api';
+import { api, CatalogProduct, Recipient } from '@/lib/api';
 import { ProductArtwork } from '@/components/product-artwork';
 import { addToCart } from '@/lib/cart';
 
@@ -64,12 +64,14 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
   const [conversationLoading, setConversationLoading] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const chatMessagesRef = useRef<HTMLDivElement>(null);
   const shouldScrollToBottomRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     selectedRecipientIdRef.current = recipient?.id;
@@ -112,6 +114,34 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
     setError('');
     setNotice('');
     router.replace(selected ? `/recommendations?recipient=${encodeURIComponent(selected.id)}` : '/recommendations');
+  }
+
+  function startNewConversation() {
+    if (!recipient || requesting || conversationLoading) return;
+    setConversationId(null);
+    setMessages([]);
+    setHasMoreMessages(false);
+    setError('');
+    setNotice('');
+  }
+
+  async function clearHistory() {
+    if (!recipientId || clearingHistory || requesting || conversationLoading || !messages.length) return;
+    if (!window.confirm('Xóa toàn bộ hội thoại với người nhận này? Hành động này không thể hoàn tác.')) return;
+    setClearingHistory(true);
+    try {
+      await api<{ deleted: number }>(`/recommendations/conversation?recipientId=${encodeURIComponent(recipientId)}`, { method: 'DELETE' });
+      setConversationId(null);
+      setMessages([]);
+      setHasMoreMessages(false);
+      setError('');
+      setNotice('');
+    } catch (reason) {
+      if ((reason as { status?: number }).status === 401) router.replace('/login');
+      else setError((reason as Error).message);
+    } finally {
+      setClearingHistory(false);
+    }
   }
 
   const recipientId = recipient?.id;
@@ -174,6 +204,8 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
     setRequestText('');
     shouldScrollToBottomRef.current = true;
     setMessages(current => [...current, optimisticMessage]);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     try {
       const result = await api<{ conversationId: string; occasion: string; budgetVnd: number; messages: ChatMessage[] }>('/recommendations', {
         method: 'POST',
@@ -182,9 +214,10 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
           ...(conversationId ? { conversationId } : {}),
           budgetVnd: budget,
           occasion,
-          ...(requestText.trim() ? { request: requestText.trim() } : {}),
+          ...(typedMessage ? { request: typedMessage } : {}),
           idempotencyKey: newIdempotencyKey(),
         }),
+        signal: controller.signal,
       });
       setConversationId(result.conversationId);
       shouldScrollToBottomRef.current = true;
@@ -198,19 +231,47 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
     } catch (reason) {
       setMessages(current => current.filter(message => message.id !== optimisticMessageId));
       if (typedMessage) setRequestText(current => current || typedMessage);
-      if ((reason as { status?: number }).status === 401) router.replace('/login');
+      if ((reason as Error).name === 'AbortError') {
+        setNotice('Đã hủy đợi phản hồi. Yêu cầu vẫn có thể hoàn tất trên máy chủ; tải lại trang để xem hội thoại mới nhất.');
+      } else if ((reason as { status?: number }).status === 401) router.replace('/login');
       else setError((reason as Error).message);
     } finally {
+      abortControllerRef.current = null;
       setRequesting(false);
     }
   }
 
-  function addBundleToCart(bundle: RecommendationBundle) {
-    for (const item of bundle.items) {
-      const variant = item.product.variants.find(entry => entry.id === item.variantId);
-      if (variant && variant.stock > 0) addToCart(item.product, variant, item.quantity);
+  function cancelRequest() {
+    abortControllerRef.current?.abort();
+  }
+
+  async function addItemToCart(item: RecommendationBundle['items'][number]): Promise<boolean> {
+    const variant = item.product.variants.find(entry => entry.id === item.variantId);
+    if (!variant) return false;
+    try {
+      const fresh = await api<CatalogProduct>(`/catalog/products/${encodeURIComponent(item.product.slug)}`);
+      const freshVariant = fresh.variants.find(entry => entry.id === item.variantId);
+      if (!freshVariant) return false;
+      return addToCart(fresh, freshVariant, item.quantity);
+    } catch (reason) {
+      if (typeof (reason as { status?: number }).status === 'number') return false;
+      return addToCart(item.product, variant, item.quantity);
     }
-    setNotice(`Đã thêm gói “${bundle.title}” vào giỏ hàng.`);
+  }
+
+  async function addSingleItem(item: RecommendationBundle['items'][number]) {
+    if (await addItemToCart(item)) setNotice(`Đã thêm “${item.product.name}” vào giỏ hàng.`);
+    else setError(`Không thể thêm “${item.product.name}” vào giỏ: sản phẩm đã hết hàng hoặc ngừng bán.`);
+  }
+
+  async function addBundleToCart(bundle: RecommendationBundle) {
+    const results = await Promise.all(bundle.items.map(item => addItemToCart(item)));
+    const failed = bundle.items.filter((_, index) => !results[index]);
+    if (failed.length === bundle.items.length) {
+      setError(`Không thể thêm gói “${bundle.title}” vào giỏ: các sản phẩm đã hết hàng hoặc ngừng bán.`);
+      return;
+    }
+    setNotice(`Đã thêm gói “${bundle.title}” vào giỏ hàng.${failed.length ? ` Bỏ qua ${failed.map(item => item.product.name).join(', ')} vì đã hết hàng hoặc ngừng bán.` : ''}`);
   }
 
   if (loading) return <main className="page-container min-h-[50vh] flex-1 py-16" role="status">Đang tải thông tin người nhận và quà tặng...</main>;
@@ -228,13 +289,13 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
     <div className="mt-6 grid items-start gap-5 lg:grid-cols-[285px_minmax(0,1fr)]">
       <aside className="space-y-4">
         <section className="surface p-4"><h2 className="font-extrabold">Dịp tặng quà</h2><div className="mt-3 flex flex-wrap gap-2">{occasions.map(item=><button key={item.value} type="button" aria-pressed={occasion===item.value} onClick={()=>setOccasion(item.value)} className={`rounded-full border px-3 py-2 text-xs ${occasion===item.value?'border-[#193f32] bg-[#193f32] font-bold text-white':'border-[#dfe5d9] bg-white'}`}>{item.label}</button>)}</div></section>
-        <section className="surface p-4"><div className="flex items-center justify-between"><h2 className="font-extrabold">Ngân sách tối đa</h2><span className="text-sm font-bold">{money(budget)}</span></div><input aria-label="Ngân sách tối đa" type="range" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>setBudget(Number(event.target.value))} className="mt-4 w-full accent-[#193f32]" /><div className="flex justify-between text-xs text-[#64756b]"><span>{money(minBudget)}</span><span>{money(maxBudget)}</span></div></section>
+        <section className="surface p-4"><h2 className="flex items-center justify-between font-extrabold">Ngân sách tối đa<input aria-label="Nhập ngân sách tối đa" type="number" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>{ const value = Number(event.target.value); if (!Number.isNaN(value)) setBudget(value); }} onBlur={event=>setBudget(Math.min(maxBudget, Math.max(minBudget, Number(event.target.value) || minBudget)))} className="w-28 rounded-lg border border-[#dfe5d9] px-2 py-1 text-right text-sm" /></h2><input aria-label="Ngân sách tối đa" type="range" min={minBudget} max={maxBudget} step={budgetStep} value={budget} onChange={event=>setBudget(Number(event.target.value))} className="mt-4 w-full accent-[#193f32]" /><div className="flex justify-between text-xs text-[#64756b]"><span>{money(minBudget)}</span><span>{money(maxBudget)}</span></div></section>
         <section className="surface p-4"><h2 className="font-extrabold">Sở thích</h2><div className="mt-3 flex flex-wrap gap-2">{(recipient?.interests.length ? recipient.interests : ['Thêm sở thích trong hồ sơ']).map(item=><span key={item} className="pill">{item}</span>)}</div><h3 className="mt-5 text-sm font-bold">Không thích</h3><div className="mt-3 flex flex-wrap gap-2">{(recipient?.dislikes.length ? recipient.dislikes : ['Chưa có dữ liệu']).map(item=><span key={item} className="rounded-full border border-dashed border-[#b9c7b9] px-3 py-1.5 text-xs">{item}</span>)}</div><Link href={recipient?`/recipients/${encodeURIComponent(recipient.id)}`:'/recipients'} className="mt-4 inline-block text-xs font-semibold underline">Chỉnh sửa hồ sơ</Link></section>
         {recipient?.notes && <section className="rounded-2xl border border-[#dfe5d9] bg-[#edf1e8] p-4"><h2 className="font-extrabold">Ghi chú</h2><p className="mt-2 text-sm leading-6 text-[#64756b]">{recipient.notes}</p></section>}
         <button type="button" disabled={!recipient || requesting || conversationLoading} onClick={() => { void requestRecommendations(); }} className="btn-accent w-full disabled:cursor-not-allowed disabled:opacity-50">{requesting ? 'Đang tìm quà phù hợp...' : messages.length ? 'Tìm gợi ý mới' : 'Tìm quà phù hợp'}</button>
       </aside>
       <section className="flex h-[min(75vh,760px)] min-h-[360px] flex-col overflow-hidden rounded-2xl border border-[#dfe5d9] bg-white">
-        <div className="flex shrink-0 items-center gap-3 border-b border-[#edf1e8] p-4"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#193f32] text-white">✧</span><div><h2 className="font-bold">Trợ lý chọn quà</h2></div></div>
+        <div className="flex shrink-0 items-center gap-3 border-b border-[#edf1e8] p-4"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#193f32] text-white">✧</span><h2 className="font-bold">Trợ lý chọn quà</h2><div className="ml-auto flex items-center gap-4 text-xs font-semibold"><button type="button" disabled={!recipient || requesting || conversationLoading || clearingHistory} onClick={startNewConversation} className="text-[#193f32] underline disabled:opacity-50">Hội thoại mới</button>{messages.length > 0 && <button type="button" disabled={!recipient || requesting || conversationLoading || clearingHistory} onClick={() => { void clearHistory(); }} className="text-[#8a2f2f] underline disabled:opacity-50">{clearingHistory ? 'Đang xóa...' : 'Xóa lịch sử'}</button>}</div></div>
         <div ref={chatMessagesRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
           {conversationLoading && <p role="status" className="text-xs text-[#849188]">Đang kiểm tra lịch sử trò chuyện...</p>}
           {hasMoreMessages && !conversationLoading && <button type="button" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages(); }} className="mx-auto block rounded-full border border-[#dfe5d9] px-4 py-2 text-sm font-semibold text-[#193f32] disabled:opacity-50">{loadingOlderMessages ? 'Đang tải...' : 'Tải tin nhắn cũ hơn'}</button>}
@@ -250,18 +311,18 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
                 const image = variant?.media.find(media => media.type === 'IMAGE')?.url;
                 return <div key={`${item.variantId}-${itemIndex}`} className="flex min-w-0 items-start gap-3 rounded-xl bg-[#f8f7f1] p-3">
                   <ProductArtwork name={item.product.name} category={item.product.categories[0]?.name} imageUrl={image} className="!h-20 !w-20 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1"><Link href={`/catalog/${item.product.slug}`} className="block break-words font-bold no-underline hover:underline">{item.product.name}</Link><strong className="mt-1 block">{money(item.priceVnd * item.quantity)}</strong><p className="mt-1 break-words text-xs text-[#64756b]">{item.variantLabel} · SL {item.quantity}</p><p className="mt-1 break-words text-sm text-[#526b5c]">{item.reason}</p></div>
+                  <div className="min-w-0 flex-1"><Link href={`/catalog/${item.product.slug}`} className="block break-words font-bold no-underline hover:underline">{item.product.name}</Link><strong className="mt-1 block">{money(item.priceVnd * item.quantity)}</strong><p className="mt-1 break-words text-xs text-[#64756b]">{item.variantLabel} · SL {item.quantity}</p><p className="mt-1 break-words text-sm text-[#526b5c]">{item.reason}</p><button type="button" onClick={() => { void addSingleItem(item); }} className="mt-2 text-xs font-semibold text-[#193f32] underline">Thêm vào giỏ</button></div>
                 </div>;
               })}</div>
-              <button type="button" onClick={() => addBundleToCart(bundle)} className="btn-primary mt-3 min-h-9 px-4 text-xs">Thêm cả gói vào giỏ</button>
+              <button type="button" onClick={() => { void addBundleToCart(bundle); }} className="btn-primary mt-3 min-h-9 px-4 text-xs">Thêm cả gói vào giỏ</button>
             </article>)}
           </div>)}
-          {requesting && <div role="status" aria-label="Trợ lý đang nhập tin nhắn" className="flex w-fit items-center gap-1.5 rounded-2xl rounded-tl-sm bg-[#edf1e8] px-4 py-3">
+          {requesting && <div role="status" className="flex items-center gap-3"><div aria-label="Trợ lý đang nhập tin nhắn" className="flex w-fit items-center gap-1.5 rounded-2xl rounded-tl-sm bg-[#edf1e8] px-4 py-3">
             <span className="sr-only">Trợ lý đang nhập tin nhắn</span>
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#64756b]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#64756b] [animation-delay:150ms]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-[#64756b] [animation-delay:300ms]" />
-          </div>}
+          </div><button type="button" onClick={cancelRequest} className="text-xs font-semibold text-[#8a2f2f] underline">Hủy</button></div>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         </div>
         <form onSubmit={requestRecommendations} className="flex shrink-0 items-center gap-3 border-t border-[#edf1e8] bg-[#f8f7f1] p-4"><input value={requestText} onChange={event=>setRequestText(event.target.value)} maxLength={500} placeholder="Nhắn thêm yêu cầu, ví dụ: ưu tiên quà thủ công..." aria-label="Nhập tin nhắn cho trợ lý chọn quà" className="form-control rounded-full" /><button type="submit" disabled={!recipient || requesting || conversationLoading} aria-label="Gửi tin nhắn" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#193f32] text-white disabled:opacity-50">{requesting?'…':'→'}</button></form>

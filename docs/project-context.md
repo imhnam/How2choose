@@ -121,6 +121,9 @@ docs                      Product, architecture, tasks, project-context
 - Chỉ gửi relationship, birthday, interests, dislikes, notes (≤500) cho Gemini;
   không gửi tên/SĐT/địa chỉ/avatar.
 - Tối đa 100 sản phẩm, 8 biến thể/sản phẩm, 3 gói, 5 món/gói; tổng từng gói ≤ ngân sách.
+- Candidates lọc theo khu vực giao hàng của người nhận khi hồ sơ có địa chỉ có cấu trúc:
+  mã tỉnh 1/79/48 → `HN`/`HCM`/`DN` (`regionTokenForProvince`), mã khác → `v1:/v2:` khớp
+  cột `shippingRegions`; sản phẩm `ALL` luôn đủ điều kiện; không có địa chỉ thì không lọc.
 - Gemini trả JSON theo `responseSchema`; API kiểm tra cấu trúc và xác thực lại
   productId/variantId/quantity/stock/giá với catalog; gói sai hoặc sản phẩm vừa bị tắt bị loại.
 - Output bị cắt (`MAX_TOKENS`) hoặc bị safety filter chặn trả lỗi riêng, không phải lỗi parse chung.
@@ -129,6 +132,10 @@ docs                      Product, architecture, tasks, project-context
 - Rate limit: 5 POST/phút/tài khoản; 60 request/phút cho các route còn lại của controller.
 - Hội thoại lưu PostgreSQL theo owner/recipient; tải 20 tin mới nhất, phân trang tin cũ.
   Snapshot gói lưu media ID và được ký lại URL khi đọc lịch sử.
+- `DELETE /api/recommendations/conversation?recipientId=` xóa mọi hội thoại của hồ sơ thuộc owner;
+  web có "Hội thoại mới" (bắt đầu hội thoại mới) và "Xóa lịch sử" (có confirm).
+- Thêm giỏ từ gợi ý: web revalidate giá/biến thể/tồn qua `GET /api/catalog/products/:slug`,
+  bỏ món hết hàng/ngừng bán, offline mới dùng snapshot; có nút thêm từng món.
 - Không có biến thể phù hợp → trả danh sách gói rỗng, không gọi Gemini.
 - `GEMINI_API_KEY` và `GEMINI_MODEL` chỉ ở server; `_` trong tên model được đổi thành `-`.
 - Chi tiết lỗi provider được log server-side; response chỉ kèm chi tiết ngoài production.
