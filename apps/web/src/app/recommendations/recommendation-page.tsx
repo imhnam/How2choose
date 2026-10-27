@@ -310,7 +310,7 @@ export default function RecommendationPage({ initialRecipient }: { initialRecipi
   if (loading) return <main className="page-container flex min-h-[50vh] flex-1 flex-col items-center justify-center py-16 text-center" role="status"><Image src="/images/mascot/mascot-laptop.png" alt="" width={223} height={289} className="w-28 sm:w-32" /><p className="mt-4 text-[#64756b]">Đang tải thông tin người nhận và quà tặng...</p></main>;
 
   return <main className="page-container flex-1 py-4 sm:py-5">
-    <p className="eyebrow">Gợi ý quà bằng AI</p><h1 className="mt-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl">Tìm quà cho {recipient?.displayName ?? 'người bạn quan tâm'}</h1>
+    <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl">Tìm quà cho {recipient?.displayName ?? 'người bạn quan tâm'}</h1>
     <div className={`mt-4 grid items-start gap-4 ${filtersOpen ? 'lg:grid-cols-[260px_200px_minmax(0,1fr)]' : 'lg:grid-cols-[52px_200px_minmax(0,1fr)]'}`} style={chatHeight ? { '--col-h': `${chatHeight}px` } as CSSProperties : undefined}>
       <aside className={`order-3 rounded-2xl border border-[#dfe5d9] bg-white p-3 lg:order-none lg:p-2 ${filtersOpen ? 'space-y-3 lg:flex lg:h-[var(--col-h)] lg:min-h-[420px] lg:flex-col lg:justify-between lg:overflow-y-auto' : 'lg:h-fit lg:pt-2'}`}>
         <div className="flex items-center justify-between gap-2">

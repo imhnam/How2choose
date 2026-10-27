@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { AdminGuard } from '../auth/admin.guard';
 import { AuthRequest } from '../auth/auth.types';
 import { SessionGuard } from '../auth/session.guard';
-import { AdminGuard } from './admin.guard';
 import { MediaService } from './media.service';
 
 const uploadBody = {

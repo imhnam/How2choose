@@ -38,12 +38,16 @@ export default function ProductDetail({ slug }: { slug: string }) {
     return () => { active = false; };
   }, [slug]);
 
-  const galleryItems: GalleryItem[] = product ? product.variants.flatMap<GalleryItem>(item => {
-    const images = item.media.filter(media => media.type === 'IMAGE');
-    return images.length
-      ? images.map(media => ({ variant: item, imageUrl: media.url, key: media.id }))
-      : [{ variant: item, imageUrl: null, key: item.id }];
-  }) : [];
+  const galleryItems: GalleryItem[] = product ? (() => {
+    const productImages = product.media.filter(media => media.type === 'IMAGE');
+    return product.variants.flatMap<GalleryItem>(item => {
+      const images = item.media.filter(media => media.type === 'IMAGE');
+      const source = images.length ? images : productImages;
+      return source.length
+        ? source.map(media => ({ variant: item, imageUrl: media.url, key: `${item.id}-${media.id}` }))
+        : [{ variant: item, imageUrl: null, key: item.id }];
+    });
+  })() : [];
   const activeGalleryIndex = galleryItems.length ? galleryIndex % galleryItems.length : 0;
   const activeGalleryItem = galleryItems[activeGalleryIndex];
 

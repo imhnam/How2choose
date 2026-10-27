@@ -5,7 +5,8 @@ import { ProductArtwork } from '@/components/product-artwork';
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 
 export function ProductCard({ product }: { product: CatalogProduct }) {
-  const image = product.variants.flatMap(variant => variant.media).find(media => media.type === 'IMAGE')?.url;
+  const image = product.media.find(media => media.type === 'IMAGE')?.url
+    ?? product.variants.flatMap(variant => variant.media).find(media => media.type === 'IMAGE')?.url;
   const category = product.categories[0]?.name;
   return (
     <Link href={`/catalog/${product.slug}`} className="group overflow-hidden rounded-2xl border border-[#dfe5d9] bg-white no-underline transition hover:-translate-y-1 hover:shadow-lg">

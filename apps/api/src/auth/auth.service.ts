@@ -4,6 +4,7 @@ import { AuthUser } from './auth.types';
 import { hashPassword, newToken, normalizeIdentifier, tokenHash, verifyPassword } from './auth.utils';
 import { LocationsService } from '../locations/locations.service';
 const SESSION_DAYS = 30;
+const ADMIN_SESSION_DAYS = 7;
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService, private readonly locations: LocationsService) {}
@@ -21,15 +22,24 @@ export class AuthService {
     return this.createSession(user.id);
   }
   async login(identifier: string, password: string) {
+    const user=await this.verifyCredentials(identifier,password);
+    return this.createSession(user.id);
+  }
+  async adminLogin(identifier: string, password: string) {
+    const user=await this.verifyCredentials(identifier,password);
+    if(user.role!=='ADMIN') throw new UnauthorizedException('Thông tin đăng nhập không đúng hoặc tài khoản không có quyền quản trị.');
+    return this.createSession(user.id,ADMIN_SESSION_DAYS);
+  }
+  private async verifyCredentials(identifier: string, password: string) {
     let key: { email?: string; phone?: string };
     try { key=normalizeIdentifier(identifier); } catch { throw new UnauthorizedException('Th?ng tin ??ng nh?p kh?ng ??ng'); }
     const user=await this.prisma.user.findFirst({where:key});
     if(!user?.passwordHash || !(await verifyPassword(password,user.passwordHash))) throw new UnauthorizedException('Th?ng tin ??ng nh?p kh?ng ??ng');
-    return this.createSession(user.id);
+    return user;
   }
-  async createSession(userId: string) {
+  async createSession(userId: string, days = SESSION_DAYS) {
     const token=newToken();
-    const expiresAt=new Date(Date.now()+SESSION_DAYS*24*60*60*1000);
+    const expiresAt=new Date(Date.now()+days*24*60*60*1000);
     await this.prisma.session.create({data:{userId,tokenHash:tokenHash(token),expiresAt}});
     const user=await this.prisma.user.findUniqueOrThrow({where:{id:userId}});
     return { token, expiresAt, user: this.publicUser(user) };

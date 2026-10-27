@@ -325,6 +325,14 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     return this.get(ownerId, id);
   }
 
+  async retryShipmentForAdmin(id: string) {
+    const order = await this.prisma.order.findUnique({ where: { id }, select: { status: true } });
+    if (!order) throw new NotFoundException('Không tìm thấy đơn hàng.');
+    if (order.status !== 'PAID') throw new ConflictException('Chỉ tạo vận đơn cho đơn đã thanh toán.');
+    await this.ensureShipment(id);
+    return { ok: true };
+  }
+
   private async ensureShipment(id: string) {
     const order = await this.prisma.order.findUnique({ where: { id }, include: { items: true } });
     if (!order || order.status !== 'PAID' || order.shipmentStatus === 'CREATED') return;

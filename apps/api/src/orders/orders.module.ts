@@ -12,5 +12,6 @@ import { VnpayService } from './vnpay.service';
   imports: [AuthModule, GhnModule, LocationsModule],
   controllers: [OrdersController, VnpayController],
   providers: [OrdersService, VnpayService, PrismaService],
+  exports: [OrdersService],
 })
 export class OrdersModule {}

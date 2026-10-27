@@ -1,6 +1,6 @@
 # Project context — Howtochoose
 
-> Ảnh chụp nhanh codebase, cập nhật 2026-10-26. Đây là tài liệu định hướng, không thay thế
+> Ảnh chụp nhanh codebase, cập nhật 2026-10-27. Đây là tài liệu định hướng, không thay thế
 > `docs/product.md`, các file trong `specs/` hay `apps/api/prisma/schema.prisma`.
 > Cập nhật file này khi cấu trúc module, luồng chính hoặc trạng thái tính năng thay đổi.
 
@@ -20,11 +20,16 @@ Phạm vi hiện tại: một cửa hàng, tiền VND, giao diện tiếng Việ
 - npm workspaces, một `package-lock.json`; Node.js >= 22.12, npm >= 10.
 - `apps/web`: Next.js 16.4 (App Router), React 19.3, Tailwind 4, TypeScript strict.
 - `apps/api`: NestJS 11, Prisma 7 + `@prisma/adapter-pg`, PostgreSQL 17.
+- `D:\How2choose-admin`: repo Git riêng cho giao diện quản trị, Next.js 16.4.3, React 19.3,
+  Tailwind 4, cổng 3002. Không phải workspace của repo này.
 - PostgreSQL qua Docker Compose: `127.0.0.1:5433`.
 - MinIO qua Docker Compose: API `127.0.0.1:9000`, console `127.0.0.1:9001`; bucket private.
-- Web: `http://localhost:3000`. API: `http://localhost:3001/api`. Swagger: `/api/docs`.
-- API dùng global prefix `api`, CORS chỉ cho `WEB_ORIGIN`, chặn request ghi từ origin khác.
-- Dùng hostname `localhost` cho web/API để chia sẻ cookie; `DATABASE_URL` dùng `127.0.0.1`.
+- Web: `http://localhost:3000`. Admin: `http://localhost:3002`. API: `http://localhost:3001/api`.
+  Swagger: `/api/docs`.
+- API dùng global prefix `api`, CORS chỉ cho `WEB_ORIGIN` và `ADMIN_ORIGIN`, chặn request ghi
+  từ origin khác.
+- Dùng hostname `localhost` cho web/admin/API để chia sẻ cookie; `DATABASE_URL` dùng `127.0.0.1`.
+  API chỉ bind IPv4 loopback nên server-side của admin dùng `API_URL=http://127.0.0.1:3001`.
 
 ## 3. Cấu trúc thư mục
 
@@ -32,7 +37,8 @@ Phạm vi hiện tại: một cửa hàng, tiền VND, giao diện tiếng Việ
 apps/web/src/app          Trang Next.js (App Router)
 apps/web/src/components   Header, footer, product card, address selector...
 apps/web/src/lib          api.ts (fetch wrapper), cart.ts (localStorage)
-apps/api/src/auth         Đăng ký/đăng nhập, session, Google OAuth
+apps/api/src/admin        API quản trị catalog và đơn (admin)
+apps/api/src/auth         Đăng ký/đăng nhập, session, Google OAuth, AdminGuard
 apps/api/src/recipients   Hồ sơ người nhận
 apps/api/src/catalog      Danh mục, sản phẩm, biến thể, lọc
 apps/api/src/locations    Proxy Province Open API v1/v2
@@ -41,10 +47,14 @@ apps/api/src/orders       Quote, tạo đơn, VNPAY, tồn kho, shipment
 apps/api/src/ghn          GHN staging client
 apps/api/src/recommendations  Gemini + hội thoại + validate gói quà
 apps/api/prisma           Schema và migration đã commit
-scripts                   setup-env.mjs, seed-catalog.mjs
+scripts                   setup-env.mjs, seed-catalog.mjs, promote-admin.mjs
 specs                     Đặc tả tính năng
 docs                      Product, architecture, tasks, project-context
 ```
+
+Repo `How2choose-admin`: `src/app` (login, dashboard, categories, products, orders),
+`src/components`, `src/lib` (API client, server-side cookie forwarding, types, format),
+`proxy.ts` (chặn thiếu cookie phiên), `next.config.ts` (security headers, noindex).
 
 ## 4. Module và endpoint chính của API
 
@@ -56,6 +66,7 @@ docs                      Product, architecture, tasks, project-context
 | Catalog | `GET /catalog/categories`; `GET /catalog/products`; `GET /catalog/products/:slug` |
 | Locations | `GET /locations/provinces`, `/districts`, `/wards`, `/current-from-legacy` |
 | Media | Avatar: `GET/POST/DELETE /media/avatar`; recipient avatar: `POST /media/recipients/:id/avatar`; product/variant media; upload sản phẩm cần `ADMIN` |
+| Admin | `POST /admin/auth/login`, `/logout`; `GET /admin/auth/me`; `GET /admin/summary`; CRUD `/admin/categories`, `/admin/products`, `/admin/variants`; `POST /admin/media/reorder`; `GET /admin/orders`, `GET /admin/orders/:id`; `POST /admin/orders/:id/shipment/retry` — tất cả qua `SessionGuard` + `AdminGuard` |
 | Orders | `POST /orders/quote`; `POST /orders`; `GET /orders`; `GET /orders/:id`; `POST /orders/:id/cancel`; `POST /orders/:id/shipment/retry` |
 | Payments | `GET /payments/vnpay/ipn`, `/payments/vnpay/return` — không dùng `SessionGuard` |
 | Recommendations | `POST /recommendations`; `GET /recommendations/conversation?recipientId=...&before=...` |
@@ -67,7 +78,7 @@ docs                      Product, architecture, tasks, project-context
 
 - `User`: email/phone/googleSub unique; passwordHash scrypt; role `USER|ADMIN`; displayName;
   birthday; avatarObjectKey; địa chỉ giao hàng mặc định dạng cột phẳng.
-- `Session`: tokenHash SHA-256 unique, expiresAt (30 ngày), cascade theo user.
+- `Session`: tokenHash SHA-256 unique, expiresAt (storefront 30 ngày, admin 7 ngày), cascade theo user.
 - `Recipient`: ownerId, displayName, phone, relationship, birthday, interests[], dislikes[],
   notes, avatar, địa chỉ có cấu trúc. Tên trùng được phép.
 - `RecommendationConversation` / `RecommendationMessage`: owner/recipient, occasion, budgetVnd;
@@ -93,6 +104,10 @@ docs                      Product, architecture, tasks, project-context
 - Email hoặc SĐT + mật khẩu; SĐT nội địa 10 số bắt đầu bằng 0 được chuẩn hóa `+84`.
 - Mật khẩu scrypt với salt riêng; DB không lưu mật khẩu rõ.
 - Session token ngẫu nhiên; DB chỉ lưu hash; cookie HttpOnly, SameSite=Lax, Secure khi production.
+- Admin dùng chung cơ chế phiên nhưng TTL 7 ngày; chỉ `role = ADMIN` được tạo phiên qua
+  `/api/admin/auth/login`. Sai thông tin và tài khoản thường đều trả 401 chung, không tạo cookie.
+- Storefront và admin chia sẻ cookie khi cùng tên miền cha; production đặt `COOKIE_DOMAIN` nếu
+  chạy trên các subdomain. Admin và API khác site hoàn toàn sẽ không dùng được SameSite=Lax.
 - Google dùng `sub` đã xác thực; **không tự động liên kết theo email**.
 - Mọi truy vấn hồ sơ/đơn/gợi ý lấy owner từ session, không nhận `ownerId` từ client.
 
@@ -102,6 +117,15 @@ docs                      Product, architecture, tasks, project-context
 - Vùng giao: `ALL`, `HN`, `HCM`, `DN`; API nhận thêm `v1:{code}`/`v2:{code}`.
 - Lọc giá/tìm kiếm/vùng thực hiện ở API; chỉ phân trang sau khi lọc.
 - `Product.stock` không phải kho thứ hai khi tạo đơn; dùng `ProductVariant.stock`.
+
+### Quản trị catalog (admin)
+- Sản phẩm mới luôn là nháp; xuất bản cần ≥1 biến thể hoạt động, biến thể đủ cân nặng/kích thước
+  đóng gói và ≥1 danh mục hoạt động.
+- Tồn kho sản phẩm được đồng bộ bằng tổng tồn biến thể hoạt động; không cho tắt/xóa biến thể
+  hoạt động cuối cùng của sản phẩm đang bán.
+- Ngừng bán sản phẩm thay vì xóa cứng. Biến thể đã có trong đơn chỉ được tạm ẩn.
+- Ẩn danh mục bị chặn khi còn danh mục con hoặc sản phẩm đang bán; xóa cứng chỉ khi danh mục rỗng.
+- Đơn hàng trong admin chỉ đọc; chỉ thao tác được là tạo lại vận đơn GHN khi đơn đã thanh toán.
 
 ### Đơn hàng và thanh toán
 - Quote ký HMAC-SHA256 (`quoteToken`) hạn 5 phút, ràng buộc owner + fingerprint dữ liệu.
@@ -145,6 +169,8 @@ docs                      Product, architecture, tasks, project-context
 - Object key do server tạo; DB lưu key + metadata, binary ở MinIO.
 - Presigned URL mặc định hết hạn sau 15 phút.
 - Chỉ chủ tài khoản đổi avatar; chỉ `ADMIN` đổi media sản phẩm.
+- Media cấp sản phẩm (`variantId = null`) dùng làm ảnh bìa và ảnh dự phòng khi biến thể chưa có
+  ảnh; media biến thể vẫn ưu tiên trong gallery và giỏ hàng.
 
 ## 7. Frontend hiện có
 
@@ -160,6 +186,16 @@ Trang: `/`, `/login`, `/register`, `/recipients`, `/recipients/[id]`, `/profile`
 - Recommendations: chọn hồ sơ/dịp/ngân sách, chat, tải tin cũ, thêm cả gói vào giỏ.
 - UI dùng client components; 401 chuyển về `/login`.
 
+### Giao diện quản trị (repo riêng)
+- Repo `How2choose-admin`, cổng 3002: `/login`, `/`, `/categories`, `/products`, `/products/new`,
+  `/products/[id]`, `/orders`, `/orders/[id]`.
+- Server component đọc cookie `htc_session`, gọi `/api/admin/auth/me`; `proxy.ts` chặn sớm khi
+  thiếu cookie, layout redirect `/login` khi không phải admin.
+- `src/lib/server-api.ts` chuyển tiếp đúng cookie và dùng `API_URL` (mặc định
+  `http://127.0.0.1:3001`); `src/lib/api.ts` dùng `NEXT_PUBLIC_API_URL` cho trình duyệt.
+- Giao diện tiếng Việt, VND, không index (`robots`, `X-Robots-Tag`, security headers).
+- Đơn hàng chỉ đọc; nút tạo lại vận đơn chỉ hiện khi đơn `PAID` và vận đơn chưa `CREATED`.
+
 ## 8. Trạng thái tính năng
 
 Đã có:
@@ -172,17 +208,21 @@ Trang: `/`, `/login`, `/register`, `/recipients`, `/recipients/[id]`, `/profile`
 - Giỏ hàng localStorage.
 - AI recommendation Gemini + hội thoại + validate.
 - Orders, quote GHN staging, VNPAY sandbox, IPN idempotent, shipment sau thanh toán.
+- API admin: đăng nhập riêng, tổng quan, CRUD danh mục/sản phẩm/biến thể, media, đơn chỉ đọc,
+  tạo lại vận đơn; giao diện admin ở repo riêng.
 
 Chưa xong / còn mở:
 - Xác minh email/SMS, quên mật khẩu, rate limiting trước khi mở đăng ký công khai.
 - Liên kết Google với tài khoản local sau xác minh.
 - Chính sách xóa hồ sơ khi đã có lịch sử quà.
-- Admin CRUD catalog và quản lý media theo biến thể.
 - Xác nhận "đã tặng" và loại trừ quà cũ khỏi gợi ý.
 - Playwright cho luồng chính, deploy demo, README portfolio.
+- Quản lý người dùng/vai trò, audit log, 2FA và thao tác hàng loạt trong admin.
 - Kiểm thử thật Google/GHN/VNPAY cần credentials; GHN mới hỗ trợ địa chỉ legacy.
 - Package profile seed là số liệu ước lượng, không dùng cho fulfillment thật.
-- `npm audit` còn cảnh báo moderate (Swagger/js-yaml).
+- `npm audit` còn 6 cảnh báo moderate: chuỗi phụ thuộc của `minio` (query-string, stream-json,
+  decode-uri-component) và `js-yaml` mà `@nestjs/swagger` ghim. Các bản vá high (multer,
+  body-parser) và fast-uri đã được áp dụng; xem mục 9.
 
 ## 9. Chạy local và kiểm tra
 
@@ -202,6 +242,8 @@ npm.cmd run dev
 - `npm run db:migrate -- --name ten_thay_doi`: tạo migration mới.
 - `npm run db:deploy`: áp dụng migration đã commit.
 - `npm run db:seed`: nạp catalog mẫu, chạy lại an toàn.
+- `npm run admin:promote -- "email-hoặc-sđt"`: cấp quyền admin (xem `specs/admin.md`).
+- Admin repo riêng: `npm install`, `npm run dev` (cổng 3002), `npm run check`/`build`.
 - CI: PostgreSQL 17 service, `npm ci → setup → db:generate → db:validate → db:deploy → check → build`.
 
 Lưu ý:
@@ -209,11 +251,18 @@ Lưu ý:
 - Nếu endpoint mới trả `Cannot GET` trong khi health vẫn chạy, thường còn tiến trình API cũ ở cổng 3001.
 - `npm run setup` chỉ tạo file env còn thiếu, không ghi đè.
 - Không chạy hai API cùng lúc trên cổng 3001.
+- API bind `127.0.0.1`; nếu Node gọi `localhost` bị `fetch failed` (IPv6), dùng `127.0.0.1`.
+- Chạy `npm install`, `npm audit fix` và các script npm ở thư mục gốc repo. Chạy trong
+  `apps/api` sẽ lỗi ERESOLVE vì `@nestjs/platform-express` được khai báo ở cả root lẫn
+  workspace; đây là lý do root giữ dependency này.
+- Bản vá bảo mật phụ thuộc: `multer` ghim 2.5.0 qua `overrides` (platform-express 11.2.7 ghim
+  2.4.0); `body-parser` và `fast-uri` được `npm audit fix` nâng trong khoảng semver.
+  `js-yaml` của `@nestjs/swagger` và chuỗi `minio` chưa có bản vá không phá vỡ tương thích.
 
 ## 10. Biến môi trường chính
 
 API (`apps/api/.env`):
-- `DATABASE_URL`, `PORT`, `WEB_ORIGIN`, `NODE_ENV`.
+- `DATABASE_URL`, `PORT`, `WEB_ORIGIN`, `ADMIN_ORIGIN`, `COOKIE_DOMAIN`, `NODE_ENV`.
 - Google: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
 - MinIO: `MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_USE_SSL`, `MINIO_ACCESS_KEY`,
   `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MEDIA_URL_TTL_SECONDS`.
@@ -226,11 +275,17 @@ API (`apps/api/.env`):
 Web (`apps/web/.env.local`):
 - `NEXT_PUBLIC_API_URL=http://localhost:3001`, `API_URL=http://localhost:3001`.
 
-Không đưa secret vào biến `NEXT_PUBLIC_*`, log, response hoặc Git.
+Admin (`How2choose-admin/.env.local`):
+- `NEXT_PUBLIC_API_URL=http://localhost:3001` (trình duyệt), `API_URL=http://127.0.0.1:3001`
+  (server), `NEXT_PUBLIC_STORE_URL=http://localhost:3000`.
+
+`ADMIN_ORIGIN` và `COOKIE_DOMAIN` chỉ đặt ở API; không đưa secret vào biến `NEXT_PUBLIC_*`, log,
+response hoặc Git.
 
 ## 11. Quy ước làm việc
 
 - Business logic và truy cập DB nằm ở API; web chỉ hiển thị và gọi API.
+- Giao diện admin là repo Git riêng, chỉ gọi `/api/admin`; không truy cập DB/MinIO trực tiếp.
 - Giữ một backend modular; chỉ thêm dependency khi tính năng cụ thể cần.
 - Dùng migration đã commit; không reset DB để sửa lỗi thông thường.
 - Mỗi task tập trung; cập nhật `docs/tasks.md` và spec liên quan khi hành vi thay đổi.
@@ -250,5 +305,6 @@ Không đưa secret vào biến `NEXT_PUBLIC_*`, log, response hoặc Git.
 - `specs/recipient-profile.md` — hồ sơ người nhận.
 - `specs/ai-recommendations.md` — luồng AI và an toàn.
 - `specs/orders.md` — checkout, đơn, tồn kho, GHN, VNPAY.
+- `specs/admin.md` — đăng nhập admin, catalog CRUD, media, đơn chỉ đọc.
 - `AGENTS.md` — hướng dẫn bắt buộc cho agent.
 - `apps/api/prisma/schema.prisma` — nguồn chân lý của dữ liệu.

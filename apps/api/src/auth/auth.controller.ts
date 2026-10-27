@@ -4,29 +4,27 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { CredentialsDto, RegisterDto, SaveAccountAddressDto, UpdateProfileDto } from './auth.dto';
 import { AuthRequest, GOOGLE_STATE_COOKIE, SESSION_COOKIE } from './auth.types';
+import { clearSessionCookie, setSessionCookie } from './auth.cookies';
 import { GoogleService } from './google.service';
 import { SessionGuard } from './session.guard';
 import { newToken } from './auth.utils';
 const webOrigin=()=>process.env.WEB_ORIGIN ?? 'http://localhost:3000';
 const cookieSecure=()=>process.env.NODE_ENV==='production';
-function setSession(res:Response, token:string, expiresAt:Date) {
-  res.cookie(SESSION_COOKIE,token,{httpOnly:true,secure:cookieSecure(),sameSite:'lax',path:'/',expires:expiresAt});
-}
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth:AuthService,private readonly google:GoogleService) {}
   @Post('register')
   async register(@Body() body:RegisterDto,@Res({passthrough:true}) res:Response) {
-    const result=await this.auth.register(body.identifier,body.password,body.displayName);setSession(res,result.token,result.expiresAt);return {user:result.user};
+    const result=await this.auth.register(body.identifier,body.password,body.displayName);setSessionCookie(res,result.token,result.expiresAt);return {user:result.user};
   }
   @Post('login')
   async login(@Body() body:CredentialsDto,@Res({passthrough:true}) res:Response) {
-    const result=await this.auth.login(body.identifier,body.password);setSession(res,result.token,result.expiresAt);return {user:result.user};
+    const result=await this.auth.login(body.identifier,body.password);setSessionCookie(res,result.token,result.expiresAt);return {user:result.user};
   }
   @Post('logout')
   async logout(@Req() req:Request,@Res({passthrough:true}) res:Response) {
-    await this.auth.logout(req.cookies?.[SESSION_COOKIE]);res.clearCookie(SESSION_COOKIE,{path:'/'});return {ok:true};
+    await this.auth.logout(req.cookies?.[SESSION_COOKIE]);clearSessionCookie(res);return {ok:true};
   }
   @Get('me') @UseGuards(SessionGuard)
   me(@Req() req:AuthRequest) { return {user:req.authUser}; }
@@ -58,7 +56,7 @@ export class AuthController {
     try {
       const identity=await this.google.identity(code);
       const session=await this.auth.googleUser(identity.subject,identity.email,identity.displayName);
-      setSession(res,session.token,session.expiresAt);
+      setSessionCookie(res,session.token,session.expiresAt);
       return res.redirect(webOrigin()+'/recipients');
     } catch(e) {
       const reason=(e as {status?:number}).status===409?'account_exists':'google_failed';

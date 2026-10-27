@@ -9,6 +9,7 @@ const product = {
   tags: [], brand: null, supplier: null, shippingRegions: ['HN'], purchaseCount: 0, ratingAverage: 4.8, ratingCount: 12,
   discountPercent: null, discountAmountVnd: null,
   categories: [{ category: { id: 'category-1', slug: 'gifts', name: 'Quà tặng' } }],
+  media: [],
   variants: [
     { id: 'cheap', sku: 'CHEAP', name: null, color: null, size: null, material: null, priceVnd: 100000, stock: 1, discountPercent: null, discountAmountVnd: null, media: [] },
     { id: 'expensive', sku: 'EXPENSIVE', name: null, color: null, size: null, material: null, priceVnd: 300000, stock: 2, discountPercent: 10, discountAmountVnd: 20000, media: [] },

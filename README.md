@@ -55,29 +55,33 @@ và trạng thái xử lý thủ công khi thanh toán đến muộn.
 ## Kiến trúc
 
 ```text
-Người dùng
-   │
-   ▼
-Next.js 16 (App Router, React 19)
-   │  REST + cookie HttpOnly
-   ▼
-NestJS 11 API
-   ├── PostgreSQL 17 + Prisma 7      Tài khoản, hồ sơ, catalog, đơn hàng, hội thoại
-   ├── MinIO                          Avatar và media sản phẩm
-   ├── Google Gemini                  Gợi ý quà có kiểm soát
-   ├── Province Open API              Tỉnh/huyện/xã theo địa giới cũ và mới
-   ├── GHN staging                    Báo phí và tạo vận đơn
-   └── VNPAY sandbox                  Thanh toán và IPN
+Người dùng                         Quản trị viên
+   │                                   │
+   ▼                                   ▼
+Next.js 16 (cửa hàng)        Next.js 16 (admin, repo riêng)
+   │                                   │
+   └───────── REST + cookie HttpOnly ──┘
+                       │
+                       ▼
+                  NestJS 11 API
+    ├── PostgreSQL 17 + Prisma 7      Tài khoản, hồ sơ, catalog, đơn hàng, hội thoại
+    ├── MinIO                          Avatar và media sản phẩm
+    ├── Google Gemini                  Gợi ý quà có kiểm soát
+    ├── Province Open API              Tỉnh/huyện/xã theo địa giới cũ và mới
+    ├── GHN staging                    Báo phí và tạo vận đơn
+    └── VNPAY sandbox                  Thanh toán và IPN
 ```
 
-Backend sở hữu toàn bộ business logic và truy cập dữ liệu. Web chỉ hiển thị, thu thập input và
-gọi API; giá, tồn kho và trạng thái đơn không bao giờ được tin từ trình duyệt.
+Backend sở hữu toàn bộ business logic và truy cập dữ liệu. Web và admin chỉ hiển thị, thu thập
+input và gọi API; giá, tồn kho và trạng thái đơn không bao giờ được tin từ trình duyệt. Giao diện
+admin là repo Git riêng, không truy cập trực tiếp PostgreSQL hay MinIO.
 
 ## Công nghệ
 
 | Thành phần | Công nghệ |
 | --- | --- |
 | Frontend | Next.js 16.4.3, React 19, Tailwind CSS 4, TypeScript |
+| Giao diện quản trị | Next.js 16.4.3 (repo riêng), React 19, Tailwind CSS 4, TypeScript |
 | Backend | NestJS 11, Prisma 7, PostgreSQL 17 |
 | Lưu trữ file | MinIO, presigned URL |
 | AI | Google Gemini |
@@ -115,6 +119,13 @@ Mật khẩu được băm bằng scrypt với salt riêng. Session token ngẫu
 trong database; trình duyệt chỉ giữ token trong cookie HttpOnly. Google được nhận diện bằng
 `sub` đã xác thực và không tự động liên kết với tài khoản email/mật khẩu trùng email.
 
+### Quản trị tách repo, quyền vẫn ở API
+
+Giao diện admin là một Next.js app riêng, nhưng mọi thao tác catalog và đơn hàng đều đi qua
+`/api/admin` với `SessionGuard` + `AdminGuard`. API kiểm tra điều kiện xuất bản, đồng bộ tồn kho
+theo biến thể và chặn xóa dữ liệu đang được tham chiếu; admin UI không thể bỏ qua các quy tắc này.
+Đơn hàng trong admin chỉ đọc, ngoại trừ tạo lại vận đơn GHN.
+
 ### Media và địa giới
 
 Ảnh/video được lưu trong bucket private; database chỉ giữ object key và metadata. API cấp
@@ -133,13 +144,14 @@ vào nhà cung cấp bên ngoài.
 - Gợi ý quà bằng Gemini, lưu hội thoại theo người nhận.
 - Giỏ hàng, checkout, báo giá GHN staging, VNPAY sandbox và quản lý đơn.
 - MinIO, presigned URL và phân quyền upload media.
+- API admin và giao diện quản trị riêng: danh mục, sản phẩm/biến thể/tồn kho/media, đơn hàng chỉ đọc.
 - CI chạy lint, typecheck, test, migrate và build.
 
 **Tiếp theo**
 
 - Xác nhận "đã tặng" và lịch sử quà để tránh gợi ý trùng.
 - Xác minh email/SMS, quên mật khẩu và rate limiting cho đăng nhập/đăng ký trước khi mở đăng ký công khai.
-- Trang admin CRUD catalog và quản lý media theo biến thể.
+- Quản lý người dùng/vai trò, audit log và 2FA cho admin.
 - Playwright cho luồng chính, demo deploy và GHN/VNPAY production.
 
 ## Giới hạn hiện tại
@@ -149,8 +161,12 @@ vào nhà cung cấp bên ngoài.
 - Giỏ hàng lưu ở trình duyệt, chưa đồng bộ theo tài khoản.
 - Cân nặng/kích thước đóng gói trong dữ liệu seed là ước lượng.
 - Chưa có xóa hồ sơ người nhận vì chính sách lịch sử quà chưa được chốt.
-- Một số cảnh báo `npm audit` ở dependency API cần tiếp tục theo dõi.
+- `npm audit` còn 6 cảnh báo moderate: chuỗi phụ thuộc của `minio` (query-string/stream-json/decode-uri-component) và `js-yaml` do `@nestjs/swagger` ghim. Các cảnh báo high (multer, body-parser) và fast-uri đã được xử lý.
+- Chạy `npm install` và `npm audit fix` ở thư mục gốc repo. Chạy trong `apps/api` sẽ lỗi ERESOLVE vì `@nestjs/platform-express` được khai báo ở cả root lẫn workspace.
 - Rate limit của API lưu trong bộ nhớ tiến trình; khi chạy nhiều instance cần cấu hình storage dùng chung (ví dụ Redis).
+- Admin chỉ có một vai trò `ADMIN`, không có phân quyền chi tiết, audit log hay 2FA.
+- Admin và storefront phải cùng tên miền cha để dùng chung cookie phiên; production đặt `COOKIE_DOMAIN`. Nếu triển khai khác site hoàn toàn, cần thiết kế lại cơ chế phiên.
+- Chưa có E2E Playwright cho admin; upload/preview media chưa được kiểm tra đầy đủ khi MinIO container lỗi.
 - `@nestjs/platform-express` được khai báo ở workspace root: khi chạy `nest start`, `@nestjs/core` (hoisted ở root) nạp HTTP driver động nên driver phải cùng cấp với nó.
 
 ## Tài liệu
@@ -163,6 +179,7 @@ vào nhà cung cấp bên ngoài.
 - [`specs/recipient-profile.md`](specs/recipient-profile.md) — hồ sơ người nhận.
 - [`specs/ai-recommendations.md`](specs/ai-recommendations.md) — luồng AI và an toàn dữ liệu.
 - [`specs/orders.md`](specs/orders.md) — checkout, tồn kho, GHN và VNPAY.
+- [`specs/admin.md`](specs/admin.md) — quản trị admin, catalog, media và đơn hàng.
 
 ## Chạy thử
 
@@ -178,8 +195,23 @@ npm.cmd run db:generate
 npm.cmd run dev
 ```
 
-Web: <http://localhost:3000> · API: <http://localhost:3001/api> · Swagger:
-<http://localhost:3001/api/docs>
+Web: <http://localhost:3000> · API: <http://localhost:3001/api> · Admin:
+<http://localhost:3002> · Swagger: <http://localhost:3001/api/docs>
 
-Cấu hình Google, GHN, VNPAY, Gemini và biến môi trường chi tiết nằm trong
-[`docs/project-context.md`](docs/project-context.md) và các file `.env.example`.
+Cấp quyền admin cho một tài khoản đã đăng ký:
+
+```powershell
+npm.cmd run admin:promote -- "email-hoặc-sđt"
+```
+
+Giao diện admin nằm ở repo riêng `How2choose-admin`:
+
+```powershell
+cd ..\How2choose-admin
+npm.cmd install
+copy .env.example .env.local
+npm.cmd run dev
+```
+
+Cấu hình Google, GHN, VNPAY, Gemini, `ADMIN_ORIGIN`, `COOKIE_DOMAIN` và biến môi trường chi tiết
+nằm trong [`docs/project-context.md`](docs/project-context.md) và các file `.env.example`.

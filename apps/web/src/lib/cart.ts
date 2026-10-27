@@ -17,7 +17,9 @@ export type CartItem = {
   stock: number;
   imageUrl: string | null;
 };
-type CartProductInput = Pick<CatalogProduct, 'id' | 'slug' | 'name'>;
+type CartProductInput = Pick<CatalogProduct, 'id' | 'slug' | 'name'> & {
+  media?: Array<{ type: string; url: string }>;
+};
 type CartVariantInput = Pick<ProductVariant, 'id' | 'sku' | 'color' | 'size' | 'material' | 'priceVnd' | 'priceAfterDiscountVnd' | 'stock'> & {
   media: Array<{ type: string; url: string }>;
 };
@@ -50,7 +52,7 @@ export function addToCart(product: CartProductInput, variant: CartVariantInput, 
   const existing = items.find(item => item.key === key);
   const label = [variant.color, variant.size, variant.material].filter(Boolean).join(' · ') || variant.sku;
   if (existing) existing.quantity = Math.min(existing.quantity + quantity, variant.stock);
-  else items.push({ key, productId: product.id, slug: product.slug, productName: product.name, variantId: variant.id, sku: variant.sku, variantLabel: label, priceVnd: variant.priceAfterDiscountVnd, originalPriceVnd: variant.priceVnd, quantity, stock: variant.stock, imageUrl: variant.media.find(media => media.type === 'IMAGE')?.url ?? null });
+  else items.push({ key, productId: product.id, slug: product.slug, productName: product.name, variantId: variant.id, sku: variant.sku, variantLabel: label, priceVnd: variant.priceAfterDiscountVnd, originalPriceVnd: variant.priceVnd, quantity, stock: variant.stock, imageUrl: variant.media.find(media => media.type === 'IMAGE')?.url ?? product.media?.find(media => media.type === 'IMAGE')?.url ?? null });
   saveCart(items);
   return true;
 }

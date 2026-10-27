@@ -68,6 +68,7 @@ export class CatalogService {
     brand: string | null; supplier: string | null; purchaseCount: number; ratingAverage: number; ratingCount: number;
     discountPercent: number | null; discountAmountVnd: number | null;
     categories: Array<{ category: { id: string; slug: string; name: string } }>;
+    media: Array<{ id: string; type: string; originalName: string; mimeType: string; sizeBytes: number; sortOrder: number; objectKey: string }>;
     variants: Array<{ id: string; sku: string; name: string | null; color: string | null; size: string | null; material: string | null; priceVnd: number; stock: number; discountPercent: number | null; discountAmountVnd: number | null; media: Array<{ id: string; type: string; originalName: string; mimeType: string; sizeBytes: number; sortOrder: number; objectKey: string }> }>;
   }, priceRange?: { min?: number; max?: number }) {
     const variants = await Promise.all(product.variants.map(async variant => ({
@@ -89,6 +90,7 @@ export class CatalogService {
       ratingAverage: product.ratingAverage, ratingCount: product.ratingCount,
       discountPercent: product.discountPercent, discountAmountVnd: product.discountAmountVnd,
       categories: product.categories.map(item => item.category), variants,
+      media: await Promise.all(product.media.map(media => this.mediaUrl(media))),
     };
   }
 
@@ -135,6 +137,7 @@ export class CatalogService {
         where, orderBy: [{ purchaseCount: 'desc' }, { createdAt: 'desc' }],
         include: {
           categories: { include: { category: { select: { id: true, slug: true, name: true } } } },
+          media: { where: { variantId: null }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
           variants: { where: { active: true }, orderBy: { priceVnd: 'asc' }, include: { media: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] } } },
         },
       });
@@ -155,6 +158,7 @@ export class CatalogService {
       where: { slug, active: true },
       include: {
         categories: { include: { category: { select: { id: true, slug: true, name: true } } } },
+        media: { where: { variantId: null }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
         variants: { where: { active: true }, orderBy: { priceVnd: 'asc' }, include: { media: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] } } },
       },
     });
