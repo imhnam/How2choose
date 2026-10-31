@@ -1,6 +1,6 @@
 # Project context — Howtochoose
 
-> Ảnh chụp nhanh codebase, cập nhật 2026-10-27. Đây là tài liệu định hướng, không thay thế
+> Ảnh chụp nhanh codebase, cập nhật 2026-10-31. Đây là tài liệu định hướng, không thay thế
 > `docs/product.md`, các file trong `specs/` hay `apps/api/prisma/schema.prisma`.
 > Cập nhật file này khi cấu trúc module, luồng chính hoặc trạng thái tính năng thay đổi.
 
@@ -181,6 +181,10 @@ Trang: `/`, `/login`, `/register`, `/recipients`, `/recipients/[id]`, `/profile`
 - `lib/cart.ts`: giỏ hàng `localStorage` key `how2choose-cart`, event `how2choose-cart-updated`; giá
   trong giỏ chỉ để hiển thị.
 - Header có tìm kiếm, nav, avatar/tên, icon giỏ hàng.
+- Giỏ hàng: bảng sản phẩm kiểu Shopee với chọn từng món/chọn tất cả, xóa món đã chọn và tổng kết
+  cuối trang gồm tổng tiền hàng, phí giao hàng (tính ở bước 2), giảm giá và tổng cộng; mã giảm giá
+  chưa hỗ trợ. Chỉ các món được chọn được đưa sang checkout qua `items`. Hồ sơ người nhận được chọn
+  ở bước 2 của checkout.
 - Checkout: chọn hồ sơ người nhận, nạp sẵn tên/SĐT/địa chỉ, quote GHN, tạo đơn, chuyển VNPAY,
   hiển thị trạng thái, xóa món đã đặt khỏi giỏ, retry shipment.
 - Recommendations: chọn hồ sơ/dịp/ngân sách, chat, tải tin cũ, thêm cả gói vào giỏ.

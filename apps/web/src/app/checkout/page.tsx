@@ -37,7 +37,11 @@ export default function CheckoutPage() {
     setRecipientSaved(false);
   }, []);
   useEffect(() => {
-    const timer = window.setTimeout(() => setItems(getCart()), 0);
+    const timer = window.setTimeout(() => {
+      const selectedKeys = new Set((new URLSearchParams(window.location.search).get('items') ?? '').split(',').filter(Boolean));
+      const cart = getCart();
+      setItems(selectedKeys.size ? cart.filter(item => selectedKeys.has(item.key)) : cart);
+    }, 0);
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('orderId');
     if (params.has('payment')) {
@@ -47,7 +51,7 @@ export default function CheckoutPage() {
           setPaidOrder(order);
           setNotice(order.shipmentStatus === 'CREATED' ? `Thanh toán thành công. Mã vận đơn GHN: ${order.ghnOrderCode}` : order.shipmentStatus === 'FAILED' ? 'Thanh toán thành công nhưng GHN chưa tạo được vận đơn.' : 'Thanh toán thành công. Đang tạo vận đơn GHN.');
           getCart().filter(item => order.items.some(line => line.variantId === item.variantId)).forEach(item => removeFromCart(item.key));
-          setItems(getCart());
+          setItems(current => current.filter(item => !order.items.some(line => line.variantId === item.variantId)));
         } else if (order.status === 'PENDING_PAYMENT') setNotice('VNPAY đang xác nhận giao dịch. Trạng thái đơn sẽ được cập nhật sau khi máy chủ nhận thông báo.');
         else setNotice(`Thanh toán chưa hoàn tất (${order.status}).`);
       }).catch(reason => setNotice((reason as Error).message));
@@ -166,7 +170,7 @@ export default function CheckoutPage() {
   return <main className="page-container flex-1 py-8 sm:py-10">
     <ol aria-label="Tiến trình đặt hàng" className="mb-7 flex flex-wrap items-center gap-3 text-sm">
       <li className="flex items-center gap-2"><Link href="/cart" className="grid h-7 w-7 place-items-center rounded-full bg-[#193f32] text-white no-underline">✓</Link><Link href="/cart" className="font-semibold no-underline">Giỏ hàng</Link></li><span className="h-px w-8 bg-[#bac8bb]" />
-      <li aria-current={quote ? undefined : 'step'} className={`flex items-center gap-2 ${quote ? 'text-[#64756b]' : 'font-bold'}`}><span className={`grid h-7 w-7 place-items-center rounded-full ${quote ? 'border border-[#bac8bb]' : 'bg-[#193f32] text-white'}`}>2</span>Địa chỉ và vận chuyển</li><span className="h-px w-8 bg-[#bac8bb]" />
+      <li aria-current={quote ? undefined : 'step'} className={`flex items-center gap-2 ${quote ? 'text-[#64756b]' : 'font-bold'}`}><span className={`grid h-7 w-7 place-items-center rounded-full ${quote ? 'border border-[#bac8bb]' : 'bg-[#193f32] text-white'}`}>2</span>Người nhận và vận chuyển</li><span className="h-px w-8 bg-[#bac8bb]" />
       <li aria-current={quote ? 'step' : undefined} className={`flex items-center gap-2 ${quote ? 'font-bold' : 'text-[#64756b]'}`}><span className={`grid h-7 w-7 place-items-center rounded-full ${quote ? 'bg-[#193f32] text-white' : 'border border-[#bac8bb]'}`}>3</span>Thanh toán</li>
     </ol>
     <div className="flex flex-wrap items-end justify-between gap-4"><h1 className="text-4xl font-extrabold tracking-tight">Thanh toán</h1><Link href="/cart" className="text-sm font-semibold text-green-900 underline">Quay lại giỏ hàng</Link></div>

@@ -8,7 +8,7 @@ Cho phép người dùng đã đăng nhập chuyển các biến thể trong gi�
 
 ## Luồng người dùng
 
-1. Từ giỏ hàng hoặc “Mua ngay”, người dùng mở checkout. Nếu chưa đăng nhập, chuyển đến đăng nhập rồi quay về checkout.
+1. Từ giỏ hàng (chỉ các sản phẩm được chọn) hoặc “Mua ngay”, người dùng mở checkout. Nếu chưa đăng nhập, chuyển đến đăng nhập rồi quay về checkout.
 2. Người dùng nhập thông tin nhận hàng, chọn địa chỉ theo địa giới cũ, xem danh sách biến thể, số lượng, tạm tính, phí GHN và tổng tiền do API trả về. Phí GHN được tính với bên trả cước là shop; phí vẫn được cộng vào tổng thanh toán VNPAY.
 3. Nếu giá hoặc tồn kho đã đổi, checkout hiển thị giá trị mới và yêu cầu người dùng xác nhận lại trước khi tạo đơn. Mặt hàng không còn bán hoặc không giao được đến khu vực đã chọn phải được sửa/xóa khỏi giỏ.
 4. Khi xác nhận, backend tạo đơn `PENDING_PAYMENT`, giữ số lượng hàng cho đơn và trả về mã đơn. Thao tác lặp do nhấp đôi hoặc lỗi mạng không tạo hai đơn.

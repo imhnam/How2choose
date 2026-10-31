@@ -65,6 +65,10 @@ export function updateCartQuantity(key: string, quantity: number) {
   saveCart(items);
 }
 
-export function removeFromCart(key: string) { saveCart(getCart().filter(item => item.key !== key)); }
+export function removeManyFromCart(keys: Iterable<string>) {
+  const selected = new Set(keys);
+  saveCart(getCart().filter(item => !selected.has(item.key)));
+}
+export function removeFromCart(key: string) { removeManyFromCart([key]); }
 export function clearCart() { saveCart([]); }
 export function cartCount(items = getCart()) { return items.length; }

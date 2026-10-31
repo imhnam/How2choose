@@ -21,7 +21,7 @@
 - [x] Catalog dữ liệu seed: danh mục nhiều cấp, sản phẩm nhiều danh mục, biến thể, giảm giá, điểm đánh giá và API đọc.
 - [x] Trang catalog với lọc danh mục/tìm kiếm và trang chi tiết biến thể.
 - [x] Header catalog có gợi ý tìm kiếm, icon giỏ hàng/thông báo, avatar và tên; lọc theo khu vực giao hàng, giá và đánh giá.
-- [x] Giỏ hàng localStorage: thêm vào giỏ, mua ngay, cập nhật số lượng và xóa sản phẩm.
+- [x] Giỏ hàng localStorage: thêm vào giỏ, mua ngay, cập nhật số lượng, chọn sản phẩm/chọn tất cả và xóa món đã chọn; giao diện bảng kiểu Shopee, chọn người nhận ở bước 2 checkout.
 - [x] Tích hợp danh sách tỉnh/huyện/xã trước và tỉnh/xã sau sáp nhập vào bộ lọc catalog và màn nhập địa chỉ checkout thử nghiệm.
 - [x] Admin CRUD catalog và quản lý media theo biến thể.
 - [x] Giao diện quản trị ở repo riêng: đăng nhập admin, tổng quan, danh mục, sản phẩm/biến thể/media, đơn hàng chỉ đọc và tạo lại vận đơn.
